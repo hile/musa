@@ -179,7 +179,6 @@ def parsedate(value):
             tval = time.strptime(value,fmt)
             break
         except ValueError,emsg:
-            print emsg
             continue
     return tval
 

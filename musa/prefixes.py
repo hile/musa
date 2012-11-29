@@ -107,10 +107,3 @@ class TreePrefixes(list):
             return path
         return prefix.relative_path(path)
 
-if __name__ == '__main__':
-    import sys
-    prefixes = TreePrefixes()
-    prefixes.register_prefix('/Volumes/Media/Samples',['flac','wav'])
-    for path in sys.argv[1:]:
-        print prefixes.relative_path(path)
-

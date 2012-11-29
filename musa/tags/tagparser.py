@@ -212,7 +212,6 @@ class TagParser(dict):
         if not isinstance(data,dict):
             raise TagError('Updated tags must be a dictionary instance')
         for k,v in data.items():
-            print k,v
             self.set_tag(k,v)
         return self.modified
 
@@ -412,14 +411,4 @@ class Tags(object):
 
         def values (self):
             return self.tags.values()
-
-if __name__ == '__main__':
-    import sys
-    for f in sys.argv[1:]:
-        t = Tags(f)
-        #t.remove_tags(['album_artist'])
-        #t.update_tags({ 'album_artist': 'Abba', 'android_loop': 'Test', })
-        t = Tags(f)
-        for k,v in t.items():
-            print '%16s %s' % (k,v)
 

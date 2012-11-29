@@ -24,6 +24,9 @@ class AlbumArtCommand(MusaCommand):
 class TagsCommand(MusaCommand):
     def __init__(self,script,name,helptext):
         MusaCommand.__init__(self,script,name,helptext)
+        self.parser.add_argument('-s','--set',action='append', 
+            help='Set tag from value (tag=value)'
+        )
         self.parser.add_argument('-i','--input-file',
             help='Set new tags from input file'
         )
@@ -41,30 +44,49 @@ class TagsCommand(MusaCommand):
             help='Files to process'
         )
 
-    def list_tags(self,targets,print_path=False,path_format=None):
+    def get_tags(self,track):
+        try:
+            return track.tags
+        except TreeError,emsg:
+            return None
+
+    def print_tags(self,track,print_path=False,path_format=None):
         if path_format is None:
             path_format = '### %s'
 
-        for target in targets:
+        tags = self.get_tags(track)
+        if tags is None:
+            return
+        if print_path: 
+            print path_format % track.path
+        for k,v in tags.items():
+            print k,v
 
-            if isinstance(target,Tree):
-                for track in target:
-                    if print_path:
-                        print path_format % track.path
-                    for k,v in track.tags.items():
-                        print k,v
-
-            elif isinstance(target,Track):
-                if print_path:
-                    print path_format % target.path
-                for k,v in target.tags.items():
-                    print k,v
+    def update_tags(self,track,tags):
+        track_tags = self.get_tags(track)
+        if track_tags is None:
+            return None
+        return track_tags.update_tags(tags)
 
     def parse_args(self,args):
         dirs,tracks = MusaCommand.parse_args(self,args)
 
+        if args.set:
+            tags = dict(map(lambda v: v.split('=',1), args.set))
+            for target in dirs + tracks:
+                if isinstance(target,Tree):
+                    for track in target:
+                        self.update_tags(track,tags)
+                elif isinstance(target,Track):
+                    self.update_tags(target,tags)
+
         if args.list:
-            self.list_tags(dirs+tracks,args.print_path,args.path_format)
+            for target in dirs + tracks:
+                if isinstance(target,Tree):
+                    for track in target:
+                        self.print_tags(track,args.print_path,args.path_format)
+                elif isinstance(target,Track):
+                    self.print_tags(target,args.print_path,args.path_format)
 
 class TreeCommand(MusaCommand):
     def __init__(self,script,name,helptext):

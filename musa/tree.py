@@ -210,16 +210,3 @@ class Track(MusaFileFormat):
         decoder = decoder.replace('FILE',self.path)
         return decoder
 
-if __name__ == '__main__':
-    import sys
-    for f in sys.argv[1:]:
-        try:
-            tree = Tree(f)
-            regexp = re.compile('.* perkele.*',re.IGNORECASE)
-            regexp=None
-            for track in tree:#tree.filter_tracks(regexp=regexp,as_tracks=False):
-                print track.relative_path()
-                #for tag,value in track.tags.items(): print '%s=%s' % (tag,value)
-        except TreeError,emsg:
-                print emsg
-
