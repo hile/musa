@@ -4,7 +4,7 @@ import os,glob
 from setuptools import setup,find_packages
 
 VERSION='2.0.1'
-README = open(os.path.join(os.path.dirname(__file__),'README.txt'),'r').read()
+README = open(os.path.join(os.path.dirname(__file__),'README.md'),'r').read()
 
 setup(
     name = 'musa',

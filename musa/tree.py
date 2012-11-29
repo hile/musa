@@ -58,7 +58,6 @@ class IterableTrackFolder(object):
         iterable = getattr(self,self.__iterable)
         iterable.__delslice__(0,len(iterable))
         self.invalid_paths.__delslice__(0,len(self.invalid_paths))
-        return
 
     def relative_path(self,path):
         return self.prefixes.relative_path(path) 
@@ -73,6 +72,7 @@ class Tree(IterableTrackFolder):
         Tree must be loaded to figure out it's length
         """
         if not self.has_been_iterated:
+            self.has_been_iterated = True
             while True:
                 try:
                     self.next()
@@ -90,7 +90,6 @@ class Tree(IterableTrackFolder):
             raise TreeError('Not a directory: %s' % self.path)
 
         IterableTrackFolder.load(self)
-
         self.empty_dirs.__delslice__(0,len(self.files))
         for (root,dirs,files) in os.walk(self.path,topdown=True):
             if files:
