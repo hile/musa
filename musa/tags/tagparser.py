@@ -21,10 +21,13 @@ class TagParser(dict):
         self.codec = codec
         self.path = normalized(os.path.realpath(path))
         self.tag_map = tag_map is not None and tag_map or {}
-        self.supports_albumart = False
         self.entry = None
         self.modified = False
 
+        self.albumart_obj = None
+        self.supports_albumart = False
+
+    @property
     def get_unknown_tags(self):
         """
         Must be implemented in child if needed: return empty list here
@@ -32,10 +35,10 @@ class TagParser(dict):
         return []
 
     @property
-    def get_albumart(self):
-        if not self.supports_albumart or not hasattr(self,'albumart'):
+    def albumart(self):
+        if not self.supports_albumart or not self.albumart_obj:
             return None
-        return self.albumart
+        return self.albumart_obj
 
     def __getattr__(self,attr):
         try:
@@ -370,11 +373,19 @@ class Tags(object):
             self.tags = tag_parser(self.fileformat.codec,self.path)
 
         @property
-        def get_mtime(self):
+        def mtime(self):
             return os.stat(self.path).st_mtime
 
-        def get_albumart(self):
+        def albumart(self):
             return self.tags.albumart
+
+        def replace_tags(self,data):
+            if not isinstance(data,dict):
+                raise TagError('Updated tags must be a dictionary instance')
+            for k,v in self.items():
+                if k not in data.keys():
+                    self.remove_tag(k)
+            return self.update_tags(data)
 
         def remove_tags(self,tags):
             """
@@ -387,12 +398,18 @@ class Tags(object):
             if self.tags.modified:
                 self.tags.save()
 
+        def as_dict(self):
+            return dict(self.items())
+
         def update_tags(self,tags):
             """
             Save tags given in a dictionary to the target file
             """
             if self.tags.update_tags(tags):
                 self.tags.save()
+
+        def remove_tag(self,tag):
+            del self.tags[tag]
 
         def set_tag(self,tag,value):
             return self.tags.set_tag(tag,value)

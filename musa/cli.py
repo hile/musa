@@ -4,8 +4,10 @@ Command line utilities for musa
 """
 
 import sys,os,time,argparse,signal,logging,socket
+import threading,tempfile
 import logging.handlers
-import threading
+
+from subprocess import Popen,PIPE
 
 from setproctitle import setproctitle
 from musa.tree import Tree,Track,TreeError
@@ -21,6 +23,45 @@ def xterm_title(value,max_length=74,bypass_term_check=False):
         return
     sys.stdout.write('\033]2;'+value[:max_length]+'',)
     sys.stdout.flush()
+
+class MusaCommand(object):
+    """
+    Parent class for musa cli subcommands
+    """
+    def __init__(self,script,name,helptext):
+        if name in script.commands:
+            raise MusaScriptError('Duplicate sub command name: %s' % name)
+        self.name = name
+        self.script = script
+        self.parser = script.command_parsers.add_parser(name,help=helptext)
+        script.commands[name] = self
+
+    def parse_args(self,args):
+        """
+        Common argument parsing
+        """
+        if args.command != self.name:
+            raise MusaScriptError('Called wrong sub command class')
+
+        dirs,tracks = [],[]
+        for path in args.paths:  
+            if os.path.isdir(path):
+                dirs.append(Tree(path))
+            elif os.path.isfile(path):
+                tracks.append(Track(path))
+            else:
+                self.script.exit(1,'No such file or directory: %s' % path)
+
+        tracks_found = False
+        for d in dirs:
+            if len(d):
+                tracks_found = True
+                break
+
+        if not tracks_found and not len(tracks):
+            return [],[]
+
+        return dirs,tracks 
 
 class MusaScriptError(Exception):
     """
@@ -147,7 +188,25 @@ class MusaThread(threading.Thread):
         self.setDaemon(True)
         self.setName(name)
         self.logger = MusaScriptLogger()
-        self.log = logging.getLogger('modules')
+        self.log = logging.getLogger(name)
+
+class MusaTagsEditor(MusaThread):
+    def __init__(self,tmpfile):
+        MusaThread.__init__(self,'musa-edit')
+        self.tmpfile = tmpfile
+
+    def run(self):
+        self.status = 'edit'
+
+        editor = os.getenv('EDITOR').split()
+        if editor is None:
+            editor = ['open','-w']
+            #editor = ['vi']
+        cmd = editor + [self.tmpfile]
+        p = Popen(cmd,stdin=sys.stdin,stdout=sys.stdout,stderr=sys.stderr)
+        p.wait()
+        self.status = 'finished'
+        return
 
 class MusaScript(object):
     """
@@ -231,53 +290,34 @@ class MusaScript(object):
             self.logger.level = logging.INFO
         return args
 
-    def read_stdin(self):
+    def edit_tags(self,tags):
         """
-        Read text data from stdin, return as lines
+        Dump, open and load back a dictionary with EDITOR
         """
-        buffer = []
-        while True:
-            line = sys.stdin.readline()
-            if line=='': break
-            buffer.append(line[:-1])
-        return buffer
+        if not isinstance(tags,dict):
+            raise MusaScriptError('Argument not a dictionary')
+        tmp = tempfile.NamedTemporaryFile(
+            dir=os.getenv('HOME'), prefix='.musa-', suffix='.txt'
+        )
+        fd = open(tmp.name,'w')
+        for k in sorted(tags.keys()):
+            fd.write('%s=%s\n' % (k,tags[k]))
+        fd.close()
 
-class MusaCommand(object):
-    """
-    Parent class for musa cli subcommands
-    """
-    def __init__(self,script,name,helptext):
-        if name in script.commands:
-            raise MusaScriptError('Duplicate sub command name: %s' % name)
-        self.name = name
-        self.script = script
-        self.parser = script.command_parsers.add_parser(name,help=helptext)
-        script.commands[name] = self
+        editor = MusaTagsEditor(tmp.name)
+        editor.start()
+        self.wait()
 
-    def parse_args(self,args):
-        """
-        Common argument parsing
-        """
-        if args.command != self.name:
-            raise MusaScriptError('Called wrong sub command class')
-
-        dirs,tracks = [],[]
-        for path in args.paths:  
-            if os.path.isdir(path):
-                dirs.append(Tree(path))
-            elif os.path.isfile(path):
-                tracks.append(Track(path))
-            else:
-                self.script.exit(1,'No such file or directory: %s' % path)
-
-        tracks_found = False
-        for d in dirs:
-            if len(d):
-                tracks_found = True
-                break
-
-        if not tracks_found and not len(tracks):
-            self.script.exit(1,'No music files detected')
-
-        return dirs,tracks 
+        new_tags = {}
+        for l in [l.strip() for l in open(tmp.name,'r').readlines()]:
+            try:
+                if l.strip()=='' or l[:1]=='#':
+                    continue
+                k,v = [x.strip() for x in l.split('=',1)]
+                if k in new_tags.keys():
+                    raise MusaScriptError('Duplicate tag in data')
+                new_tags[k] = v
+            except ValueError,emsg:
+                raise MusaScriptError('Error parsing new tags from file: %s' % emsg)
+        return new_tags
 

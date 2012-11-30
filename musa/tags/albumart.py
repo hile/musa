@@ -34,21 +34,29 @@ class AlbumArt(object):
         if path is not None:
             self.import_file(path)
 
-    def import_data(self,data):
+    def __repr__(self):
         """
-        Import albumart from metadata tag or database as bytes
+        Returns text description of image type and size
         """
-        self.__parse_image(data)
+        if not self.is_loaded():
+            return 'Uninitialized AlbumArt object.'
+        return '%(mime)s %(bytes)d bytes %(width)dx%(height)d' % self.get_info()
 
-    def import_file(self,path):
+    def __unicode__(self):
         """
-        Import albumart from file
+        Returns file format and size as unicode string
         """
-        if not os.path.isfile(path):
-            raise AlbumArtError('No such file: %s' % path)
-        if not os.access(path,os.R_OK):
-            raise AlbumArtError('No permissions to read file: %s' % path)
-        self.__parse_image(open(path,'r').read())
+        if not self.is_loaded():
+            return unicode('Uninitialized AlbumArt object')
+        return unicode('%s file %d bytes' % (self.get_fileformat(),len(self)))
+
+    def __len__(self):
+        """
+        Returns PIL image length as string
+        """
+        if not self.is_loaded():
+            return 0
+        return len(self.__image.tostring())
 
     def __parse_image(self,data):
         """
@@ -71,111 +79,75 @@ class AlbumArt(object):
         if self.__image.mode != 'RGB':
             self.__image = self.__image.convert('RGB')
 
-    def __repr__(self):
+    def import_data(self,data):
         """
-        Returns text description of image type and size
+        Import albumart from metadata tag or database as bytes
         """
-        if not self.is_loaded:
-            return 'Uninitialized AlbumArt object.'
-        return '%(mime)s %(bytes)d bytes %(width)dx%(height)d' % self.info
+        self.__parse_image(data)
 
-    def __getattr__(self,attr):
+    def import_file(self,path):
         """
-        Attributes created on the fly and returned:
-        image       PIL image
-        format      PIL image format
-        info         dictinary containing image information:
-            type    always 3 (mp3 header type for album cover)
-            mime    image mime type
-            depth   image bit depth
-            width   image width
-            height  image height
-            colors  always 0
+        Import albumart from file
         """
-        if attr == 'is_loaded':
-            if self.__image is None:
-                return False
-            return True
-        if attr in ['image','format']:
-            if self.__image is None:
-                raise AlbumArtError('AlbumArt not yet initialized.')
-            if attr == 'image':
-                return self.__image
-            elif attr == 'format': 
-                return self.__image.format
-        if attr == 'info':
-            if self.__image is None:
-                raise AlbumArtError('AlbumArt not yet initialized.')
-            colors = self.__image.getcolors()
-            if colors is None:
-                colors = 0
-            return {
-                'type': 3, # Album cover
-                'mime': self.__mimetype,
-                'bytes': len(self.dump()),
-                'depth': self.__image.bits,
-                'width': int(self.__image.size[0]),
-                'height': int(self.__image.size[1]),
-                'colors': colors,
-            }
-        raise AttributeError('No such AlbumArt attribute: %s' % attr)
+        if not os.path.isfile(path):
+            raise AlbumArtError('No such file: %s' % path)
+        if not os.access(path,os.R_OK):
+            raise AlbumArtError('No permissions to read file: %s' % path)
+        self.__parse_image(open(path,'r').read())
 
-    def __unicode__(self):
+    def is_loaded(self):
         """
-        Returns file format and size as unicode string
+        Boolean test to see if album art image is loaded
         """
-        if not self.is_loaded:
-            return unicode('Uninitialized AlbumArt object')
-        return unicode('%s file %d bytes' % (self.format,len(self)))
+        return self.__image != None
 
-    def __len__(self):
+    def get_fileformat(self):
         """
-        Returns PIL image length as string
+        Return file format of loaded album art image
         """
-        if not self.is_loaded:
-            return 0
-        return len(self.image.tostring())
+        if not self.is_loaded():
+            raise AlbumArtError('AlbumArt not yet initialized.')
+        return self.__image.format
+
+    def get_info(self):
+        """
+        Return details of loaded album art image
+        """
+        if not self.is_loaded():
+            raise AlbumArtError('AlbumArt not yet initialized.')
+        colors = self.__image.getcolors()
+        if colors is None:
+            colors = 0
+        return {
+            'type': 3, # Album cover
+            'mime': self.__mimetype,
+            'bytes': len(self),
+            'width': int(self.__image.size[0]),
+            'height': int(self.__image.size[1]),
+            'colors': colors,
+        }
 
     def dump(self):
         """
         Returns bytes from the image with StringIO.StringIO read() call
         """
-        if not self.is_loaded:
+        if not self.is_loaded():
             raise AlbumArtError('AlbumArt not yet initialized.')
         s = StringIO.StringIO()
-        self.__image.save(s,self.format)
+        self.__image.save(s,self.get_fileformat())
         s.seek(0)
         return s.read()
 
-    def fetch(self,url):
-        res = requests.get(url)
-        if r.status_code!=200:
-            raise AlbumArtError('Error fetching url %s (returns %s' % (url,r.status_code))
-        if 'content-type' not in res.headers:
-            raise AlbumArtError('Response did not include content type header')
-        try:
-            content_type = res.headers['content_type']
-            (prefix,extension) = content_type.split('/',1)
-            if prefix!='image':
-                raise AlbumArtError(
-                    'Content type of data is not supported: %s' % content_type
-                )
-        except ValueError:
-            raise AlbumArtError(
-                'Error parsing content type %s' % res.headers['content_type']
-            )
-        return self.import_data(r.content)
-
-    def save(self,path,format=None):
+    def save(self,path,fileformat=None):
         """
         Saves the image data to given target file.
 
         If target filename exists, it is removed before saving.
         """
-        if not self.is_loaded:
+        if not self.is_loaded():
             raise AlbumArtError('AlbumArt not yet initialized.')
-        if format is None:
-            format = self.format
+        if fileformat is None:
+            fileformat = self.get_fileformat()
         if os.path.isfile(path):
             try:
                 os.unlink(path)
@@ -184,7 +156,29 @@ class AlbumArt(object):
                     'Error removing existing file %s: %s' % (path,emsg)
                 )
         try:
-            self.__image.save(path,format)
+            self.__image.save(path,fileformat)
         except IOError,emsg:
             raise AlbumArtError('Error saving %s: %s' % (path,emsg))
+
+    def fetch(self,url):
+        res = requests.get(url)
+        if res.status_code!=200:
+            raise AlbumArtError(
+                'Error fetching url %s (returns %s' % (url,res.status_code)
+            )
+        if 'content-type' not in res.headers:
+            raise AlbumArtError('Response did not include content type header')
+        try:
+            content_type = res.headers['content-type']
+            (prefix,extension) = content_type.split('/',1)
+            if prefix!='image':
+                raise AlbumArtError(
+                    'Content type of data is not supported: %s' % content_type
+                )
+        except ValueError:
+            raise AlbumArtError(
+                'Error parsing content type %s' % res.headers['content-type']
+            )
+        return self.import_data(res.content)
+
 

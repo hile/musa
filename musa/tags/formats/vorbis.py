@@ -102,7 +102,7 @@ class vorbis(TagParser):
         except OggVorbisHeaderError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
 
-        self.albumart = None
+        self.albumart_obj = None
         self.track_numbering = VorbisNumberingTag(self,'TRACKNUMBER')
         self.disk_numbering = VorbisNumberingTag(self,'DISKNUMBER')
 

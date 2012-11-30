@@ -131,7 +131,7 @@ class flac(TagParser):
         except FLACNoHeaderError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
 
-        self.albumart = None
+        self.albumart_obj = None
         self.track_numbering = FLACNumberingTag(self,'TRACKNUMBER')
         self.disk_numbering = FLACNumberingTag(self,'DISKNUMBER')
 

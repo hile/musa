@@ -87,7 +87,7 @@ AAC_INTEGER_TUPLE_TYPES = [ 'trkn', 'disk' ]
 
 # Placeholder to write lambda functions to process specific tags if needed
 AAC_TAG_FORMATTERS = {
-
+    #'tempo':    lambda x: int(x),
 }
 
 class AACAlbumArt(TrackAlbumart):
@@ -185,7 +185,7 @@ class aac(TagParser):
         except RuntimeError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
 
-        self.albumart = AACAlbumArt(self)
+        self.albumart_obj = AACAlbumArt(self)
         self.track_numbering = AACIntegerTuple(self,'trkn')
         self.disk_numbering = AACIntegerTuple(self,'disk')
 
@@ -269,7 +269,8 @@ class aac(TagParser):
         entries =[]
         for v in value:
             if AAC_TAG_FORMATTERS.has_key(item):
-                entries.append(AAC_TAG_FORMATTERS[item](v))
+                formatted = AAC_TAG_FORMATTERS[item](v)
+                entries.append(formatted)
             else:
                 if not isinstance(v,unicode):
                     v = unicode(v,'utf-8')
@@ -281,4 +282,7 @@ class aac(TagParser):
         """
         Save AAC tags to the file
         """
-        TagParser.save(self)
+        try:
+            TagParser.save(self)
+        except MP4MetadataValueError,emsg:
+            raise TagError(emsg)

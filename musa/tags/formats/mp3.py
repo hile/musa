@@ -167,7 +167,7 @@ class mp3(TagParser):
         except ID3Error:
             pass
 
-        self.albumart = MP3AlbumArt(self)
+        self.albumart_obj = MP3AlbumArt(self)
         self.track_numbering = MP3NumberingTag(self,'TRCK')
         self.disk_numbering = MP3NumberingTag(self,'TPOS')
 
@@ -188,7 +188,7 @@ class mp3(TagParser):
             return [unicode('%d'%self.disk_numbering.total)]
 
         if item[:5] == 'APIC:':
-            return self.albumart
+            return self.albumart_obj
 
         fields = self.__tag2fields__(item)
         for field in fields:
