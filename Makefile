@@ -11,7 +11,8 @@ all: build
 clean:
 	@rm -rf build
 	@rm -rf dist
-	@find . -name '*.egg-info' -o -name '*.pyc' -print0|xargs -0 rm -rf
+	@find . -name '*.egg-info' -print0|xargs -0 rm -rf
+	@find . -name '*.pyc' -print0|xargs -0 rm -rf
 
 build:
 	python setup.py build
@@ -23,13 +24,13 @@ test:
 ifdef PREFIX
 install_modules: build
 	python setup.py --no-user-cfg install --prefix=${PREFIX}
-install: install_modules 
+install: install_modules
 	install -m 0755 -d $(PREFIX)/bin
 	for f in bin/*; do echo " $(PREFIX)/$$f";install -m 755 $$f $(PREFIX)/bin/;done;
 else
-install_modules: build 
+install_modules: build
 	python setup.py install
-install: install_modules 
+install: install_modules
 endif
 
 package: clean
@@ -37,7 +38,7 @@ package: clean
 	git log --pretty=format:'%ai %an%n%n%B' > CHANGELOG.txt
 	rsync -a . --exclude='*.swp' --exclude=.git --exclude=.gitignore ./ $(PACKAGE)-$(VERSION)/
 	rm CHANGELOG.txt
-	tar -zcf ../releases/$(PACKAGE)/$(PACKAGE)-$(VERSION).tar.gz --exclude=.git --exclude=.gitignore --exclude=*.swp --exclude=*.pyc $(PACKAGE)-$(VERSION) 
+	tar -zcf ../releases/$(PACKAGE)/$(PACKAGE)-$(VERSION).tar.gz --exclude=.git --exclude=.gitignore --exclude=*.swp --exclude=*.pyc $(PACKAGE)-$(VERSION)
 	rm -rf $(PACKAGE)-$(VERSION)
 
 register:

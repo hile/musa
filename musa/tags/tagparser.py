@@ -375,9 +375,17 @@ class Tags(object):
         @property
         def mtime(self):
             return os.stat(self.path).st_mtime
+    
+        @property
+        def supports_albumart(self):
+            return self.tags.supports_albumart
 
+        @property
         def albumart(self):
             return self.tags.albumart
+
+        def modified(self):
+            return self.tags.modified
 
         def replace_tags(self,data):
             if not isinstance(data,dict):
@@ -397,6 +405,9 @@ class Tags(object):
                 del self.tags[tag]
             if self.tags.modified:
                 self.tags.save()
+
+        def save(self):
+            return self.tags.save()
 
         def as_dict(self):
             return dict(self.items())

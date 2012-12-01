@@ -10,7 +10,7 @@ setup(
     name = 'musa',
     version = VERSION,
     license = 'PSF',
-    author = 'Ilkka Tuohela', 
+    author = 'Ilkka Tuohela',
     author_email = 'hile@iki.fi',
     description = 'Module for music tagging and library management',
     long_description = README,
@@ -23,5 +23,5 @@ setup(
     ],
     scripts = glob.glob('bin/*'),
     packages = ['musa','musa.tags','musa.tags.formats'],
-)   
+)
 

@@ -199,11 +199,22 @@ class mp3(TagParser):
                 tag = [tag]
             values = []
             for value in tag:
-                value = value.text[0]
+                matched = False
+                for field in ['text','url']:
+                    if hasattr(value,field):
+                        value = getattr(value,field)
+                        if isinstance(value,list):
+                            value = value[0]
+                        matched = True
+                        break
+                if value is None:
+                    raise TagError('Error parsing %s: %s' % (tag,dir(value)))
+                if not matched:
+                    raise TagError('Error parsing %s: %s' % (tag,dir(value)))
                 if not isinstance(value,unicode):
                     try:
                         value = '%d' % int(str(value))
-                    except TypeError,emsg:
+                    except ValueError,emsg:
                         pass
                     try:
                         value = unicode(value,'utf-8')

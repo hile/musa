@@ -60,15 +60,17 @@ class IterableTrackFolder(object):
         self.invalid_paths.__delslice__(0,len(self.invalid_paths))
 
     def relative_path(self,path):
-        return self.prefixes.relative_path(path) 
+        return self.prefixes.relative_path(path)
 
 class Tree(IterableTrackFolder):
     def __init__(self,path):
+        if path=='.':
+            path = os.path.realpath(path)
         IterableTrackFolder.__init__(self,path,'files')
         self.empty_dirs = []
 
     def __len__(self):
-        """ 
+        """
         Tree must be loaded to figure out it's length
         """
         if not self.has_been_iterated:
@@ -86,7 +88,7 @@ class Tree(IterableTrackFolder):
         return cmp(a[1],b[1])
 
     def load(self):
-        if not os.path.isdir(self.path): 
+        if not os.path.isdir(self.path):
             raise TreeError('Not a directory: %s' % self.path)
 
         IterableTrackFolder.load(self)
@@ -107,7 +109,7 @@ class Tree(IterableTrackFolder):
                 raise TreeError('No matches if both re_file and re_path are False')
             if isinstance(regexp,basestring):
                 regexp = re.compile(regexp)
-            tracks = filter(lambda t: 
+            tracks = filter(lambda t:
                 re_path and regexp.match(t[0]) or re_file and regexp.match(t[1]),
                 tracks
             )
@@ -116,24 +118,28 @@ class Tree(IterableTrackFolder):
         else:
             return tracks
 
+    def as_albums(self):
+        return [Album(path) for path in sorted(set(d[0] for d in self.files))]
+
 class Album(IterableTrackFolder):
     def __init__(self,path):
         IterableTrackFolder.__init__(self,path,'files')
         self.metadata = []
 
     def load(self):
-        if not os.path.isdir(self.path): 
+        if not os.path.isdir(self.path):
             raise TreeError('Not a directory: %s' % self.path)
 
         IterableTrackFolder.load(self)
         for f in os.listdir(self.path):
-            if match_codec(f) is not None:  
+            if match_codec(f) is not None:
                 self.files.append((self.path,f))
             else:
                 metadata = match_metadata(f)
                 if metadata:
-                    mdf = MetaDataFile(os.path.join(self.path,f),metadata) 
-                    self.metadata.append(mdf)
+                    self.metadata.append(
+                        metadata.__class__(os.path.join(self.path,f))
+                    )
 
 class MetaDataFile(object):
     def __init__(self,path,metadata=None):
@@ -184,19 +190,6 @@ class Track(MusaFileFormat):
             tracks.append(Track(os.path.join(path,t)))
         return tracks
 
-    def get_encoder_command(self,wav_path=None):
-        if wav_path is None:
-            wav_path = '%s.wav' % os.path.splitext(self.path)[0]
-        if wav_path == self.path:
-            raise TreeError('Trying to encode to itself')
-        try:
-            encoder = self.get_available_encoders()[0]
-        except IndexError:
-            raise TreeError('No available encoders for %s' % self.path)
-        encoder = encoder.replace('OUTFILE',self.path) 
-        encoder = encoder.replace('FILE',wav_path) 
-        return encoder
-
     def get_decoder_command(self,wav_path=None):
         if wav_path is None:
             wav_path = '%s.wav' % os.path.splitext(self.path)[0]
@@ -206,7 +199,22 @@ class Track(MusaFileFormat):
             decoder = self.get_available_decoders()[0]
         except IndexError:
             raise TreeError('No available decoders for %s' % self.path)
-        decoder = decoder.replace('OUTFILE',wav_path) 
-        decoder = decoder.replace('FILE',self.path)
+        decoder = decoder.split()
+        decoder[decoder.index('OUTFILE')] = wav_path
+        decoder[decoder.index('FILE')] = self.path
         return decoder
+
+    def get_encoder_command(self,wav_path=None):
+        if wav_path is None:
+            wav_path = '%s.wav' % os.path.splitext(self.path)[0]
+        if wav_path == self.path:
+            raise TreeError('Trying to encode to itself')
+        try:
+            encoder = self.get_available_encoders()[0]
+        except IndexError:
+            raise TreeError('No available encoders for %s' % self.path)
+        encoder = encoder.split()
+        encoder[encoder.index('OUTFILE')] = self.path
+        encoder[encoder.index('FILE')] = wav_path
+        return encoder
 

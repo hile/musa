@@ -8,6 +8,9 @@ import os,sys
 from musa.cli import MusaScript,MusaCommand
 from musa.tree import Tree,Track,TreeError
 from musa.tags import TagError
+from musa.tree import Tree,Track
+from musa.metadata import CoverArt
+from musa.transcoder import MusaTranscoder,TranscoderError
 from musa.tags.albumart import AlbumArt,AlbumArtError
 
 class AlbumArtCommand(MusaCommand):
@@ -19,15 +22,59 @@ class AlbumArtCommand(MusaCommand):
         self.parser.add_argument('-x','--extract',action='store_true',
             help='Extract artwork file'
         )
+        self.parser.add_argument('-i','--info',action='store_true',
+            help='Artwork files info'
+        )
         self.parser.add_argument('-u','--url',
             help='Fetch artwork from given url'
         )
         self.parser.add_argument('paths', metavar='path', nargs='*',
-            default=[os.getcwd()], help='Paths to process'
+            help='Paths to process'
         )
 
+    def show_info(self,target):
+        if isinstance(target,Track):
+            tags = self.get_tags(target)
+            if tags is None or not tags.supports_albumart:
+                return
+            try:
+                albumart = tags.albumart
+            except AlbumArtError,emsg:
+                return
+            print '%s: %s' % (coverart.path,albumart)
+
+        elif isinstance(target,Tree):
+            for album in target.as_albums():
+                album.load()
+                for m in album.metadata:
+                    if isinstance(m,CoverArt):
+                        self.print_coverart_info(m)
+                    else:
+                        print m
+
+    def print_coverart_info(self,coverart):
+        albumart = AlbumArt(coverart.path)
+        print '%s: %s' % (coverart.path,albumart)
+
     def parse_args(self,args):
-        dirs,tracks = MusaCommand.parse_args(self,args)
+        dirs,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        if args.embed:
+            self.script.exit(1,'Embedding not yet implemented')
+        if args.extract:
+            self.script.exit(1,'Extracting not yet implemented')
+
+        if args.info:
+            for m in metadata:
+                if not isinstance(m,CoverArt):
+                    continue
+                self.print_coverart_info(m)
+
+            for tree in dirs:
+                self.show_info(tree)
+
+            for track in tracks:
+                self.show_info(track)
 
         if args.url:
             albumart = AlbumArt()
@@ -35,30 +82,130 @@ class AlbumArtCommand(MusaCommand):
                 albumart.fetch(args.url)
             except AlbumArtError,emsg:
                 self.script.exit(1,'Error fetching albumart: %s' % emsg)
-            print albumart
+            for target in dirs:
+                albumart.save(target.path)
 
 class CompareCommand(MusaCommand):
     def __init__(self,script):
         MusaCommand.__init__(self,script,'compare','Compare music files')
 
         self.parser.add_argument('paths', metavar='path', nargs='*',
-            default=[os.getcwd()], help='Paths to process'
+            help='Paths to process'
+        )
+
+    def compare_trees(self,src,dst):
+        print 'Tree compare not yet implemented'
+
+    def compare_tracks(self,src,dst):
+        print 'Track compare not yet implemented'
+
+    def parse_args(self,args):
+        dirs,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        if dirs and tracks:
+            self.script.exit(1,"Can't compare trees to tracks")
+
+        if dirs and len(dirs)==2:
+            self.compare_trees(*dirs)
+        elif tracks and len(tracks)==2:
+            self.compare_tracks(*tracks)
+        elif metadata:
+            self.script.exit(1,'One of tracks was a metadata file')
+        else:
+            self.script.exit(1,'Requires two directory or file arguments')
+
+class ConvertCommand(MusaCommand):
+    def __init__(self,script):
+        MusaCommand.__init__(self,script,'convert','Transcode file formats')
+        self.parser.add_argument('-t','--threads', type=int, default=1,
+            help='Number of transcoder threads to use'
+        )
+        self.parser.add_argument('-f','--overwrite', action='store_true',
+            help='Overwrite existing target files'
+        )
+        self.parser.add_argument('paths', metavar='path', nargs='*',
+            help='Paths to process'
+        )
+
+    def enqueue(self,src,dst):
+        if isinstance(src,basestring):
+            try:
+                src = Track(src)
+            except TreeError,emsg:
+                self.script.exit(1,emsg)
+        if isinstance(dst,basestring):
+            try:
+                dst = Track(dst)
+            except TreeError,emsg:
+                self.script.exit(1,emsg)
+
+        if os.path.isfile(dst.path) and not self.overwrite:
+            return
+
+        try:
+            self.transcoder.enqueue(src,dst)
+        except TranscoderError,emsg:
+            self.script.exit(1,emsg)
+
+    def transcode_tree(self,src,dst):
+        if not isinstance(src,Tree) or not isinstance(dst,Tree):
+            self.script.error(1,'Tree transcoding requires 2 Tree objects')
+        for track in tree:
+            dst_track = os.path.join(dst.path,tree.relative_path(track))
+            self.enqueue(track,dst_track)
+
+    def parse_args(self,args):
+        dirs,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        track_count = sum(len(d.files) for d in dirs) + len(tracks)
+        if not track_count:
+            self.script.exit(1,'No music files detected')
+
+        self.transcoder = MusaTranscoder(args.threads,args.overwrite)
+        self.overwrite = args.overwrite
+
+        if len(dirs)==2:
+            self.transcode_trees(*dirs)
+        elif len(tracks)==2:
+            self.enqueue(*tracks)
+        else:
+            # TODO - add modes to transcode by codec etc.
+            pass
+
+        if len(self.transcoder):
+            self.transcoder.run()
+        else:
+            self.script.exit(0,'Nothing to transcode')
+
+
+class SyncCommand(MusaCommand):
+    def __init__(self,script):
+        MusaCommand.__init__(self,script,'sync','Copy tags, files and trees')
+        self.parser.add_argument('paths', metavar='path', nargs='*',
+            help='Paths to process'
         )
 
     def parse_args(self,args):
-        dirs,tracks = MusaCommand.parse_args(self,args)
+        dirs,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        track_count = sum(len(d.files) for d in dirs) + len(tracks)
+        if not track_count:
+            self.script.exit(1,'No music files detected')
 
 class TagsCommand(MusaCommand):
     def __init__(self,script):
         MusaCommand.__init__(self,script,'tags','Manage music file tags')
 
-        self.parser.add_argument('-s','--set',action='append', 
+        self.parser.add_argument('-s','--set',action='append',
             help='Set tag from value (tag=value)'
+        )
+        self.parser.add_argument('-d','--delete',action='append',
+            help='Delete tag'
         )
         self.parser.add_argument('-i','--input-file',
             help='Set new tags from input file'
         )
-        self.parser.add_argument('-e','--edit',action='store_true', 
+        self.parser.add_argument('-e','--edit',action='store_true',
             help='Edit tags in external editor'
         )
         self.parser.add_argument('-l','--list',action='store_true',
@@ -71,14 +218,8 @@ class TagsCommand(MusaCommand):
             help='String format for --print-path flag'
         )
         self.parser.add_argument('paths', metavar='path', nargs='*',
-            default=[os.getcwd()], help='Paths to process'
+            help='Paths to process'
         )
-
-    def get_tags(self,track):
-        try:
-            return track.tags
-        except TreeError,emsg:
-            return None
 
     def print_tags(self,track,print_path=False,path_format=None):
         if path_format is None:
@@ -87,7 +228,7 @@ class TagsCommand(MusaCommand):
         tags = self.get_tags(track)
         if tags is None:
             return
-        if print_path: 
+        if print_path:
             print path_format % track.path
         for k,v in tags.items():
             print k,v
@@ -106,7 +247,7 @@ class TagsCommand(MusaCommand):
                     'Error saving tags to %s: %s' % (track.path,emsg)
                 )
 
-    def update_tags(self,track,tags):
+    def update_tags(self,track,new_tags):
         track_tags = self.get_tags(track)
         if track_tags is None:
             return None
@@ -118,8 +259,10 @@ class TagsCommand(MusaCommand):
             )
 
     def parse_args(self,args):
-        dirs,tracks = MusaCommand.parse_args(self,args)
-        if dirs + tracks == []:
+        dirs,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        track_count = sum(len(d.files) for d in dirs) + len(tracks)
+        if not track_count:
             self.script.exit(1,'No music files detected')
 
         if args.set:
@@ -155,7 +298,7 @@ class TreeCommand(MusaCommand):
             help='List trees or files'
         )
         self.parser.add_argument('paths', metavar='path', nargs='*',
-            default=[os.getcwd()], help='Files to process'
+            help='Files to process'
         )
 
     def list_trees(self,dirs):
@@ -163,7 +306,12 @@ class TreeCommand(MusaCommand):
             print '%s: %d music files' % (tree.path,len(tree))
 
     def parse_args(self,args):
-        dirs,tracks = MusaCommand.parse_args(self,args)
+        dirs,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        track_count = sum(len(d.files) for d in dirs) + len(tracks)
+        if not track_count:
+            self.script.exit(1,'No music files detected')
+
         if tracks:
             self.script.exit(1,'File arguments are not accepted for tree commands')
         if not dirs:
@@ -174,6 +322,9 @@ class TreeCommand(MusaCommand):
 
 script = MusaScript()
 AlbumArtCommand(script)
+CompareCommand(script)
+ConvertCommand(script)
+SyncCommand(script)
 TagsCommand(script)
 TreeCommand(script)
 args = script.parse_args()

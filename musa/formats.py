@@ -8,7 +8,7 @@ from musa import normalized,CommandPathCache
 from musa.metadata import Metadata
 
 #
-# Default codec commands and parameters 
+# Default codec commands and parameters
 CODECS = {
 
   'mp3': {
@@ -37,7 +37,7 @@ CODECS = {
 
   'vorbis': {
     'description': 'Ogg Vorbis',
-    'extensions': ['vorbis','ogg'], 
+    'extensions': ['vorbis','ogg'],
     'encoders': [
         'oggenc --quiet -q 7 -o OUTFILE FILE',
     ],
@@ -48,7 +48,7 @@ CODECS = {
 
   'flac': {
     'description': 'Free Lossless Audio Codec',
-    'extensions': ['flac'], 
+    'extensions': ['flac'],
     'encoders': [
         'flac -f --silent --verify --replay-gain QUALITY -o OUTFILE FILE',
     ],
@@ -59,7 +59,7 @@ CODECS = {
 
   'wavpack': {
     'description': 'WavPack Lossless Audio Codec',
-    'extensions': ['wv','wavpack'], 
+    'extensions': ['wv','wavpack'],
     'encoders': [ 'wavpack -yhx FILE -o OUTFILE', ],
     'decoders': [ 'wvunpack -yq FILE -o OUTFILE', ],
   },
@@ -78,7 +78,7 @@ CODECS = {
   'aif': {
       'description': 'AIFF audio',
       'extensions':   ['aif','aiff'],
-      'encoders': [ 
+      'encoders': [
         'afconvert -f AIFF -d BEI16 FILE OUTFILE',
       ],
       'decoders': [
@@ -116,7 +116,7 @@ def filter_available_command_list(commands):
         if PATH_CACHE.which(executable) is None:
             continue
         available.append(command)
-    return available 
+    return available
 
 def match_codec(path):
     ext = os.path.splitext(path)[1][1:]
@@ -133,8 +133,8 @@ def match_metadata(path):
     metadata = Metadata()
     m = metadata.match(path)
     if m:
-        return m 
-    return False
+        return m
+    return None
 
 class MusaFileFormat(object):
     def __init__(self,path):
@@ -142,7 +142,7 @@ class MusaFileFormat(object):
         self.codec = None
         self.description = None
         self.is_metadata = False
-        
+
         self.codec = match_codec(path)
         if self.codec is not None:
             if not 'description' in CODECS[self.codec]:
@@ -150,7 +150,7 @@ class MusaFileFormat(object):
             self.description = CODECS[self.codec]['description'].lower()
         else:
             m = match_metadata(path)
-            if m:   
+            if m:
                 self.is_metadata = True
                 self.description = m.description.lower()
             elif os.path.isdir(path):
@@ -172,7 +172,7 @@ class MusaFileFormat(object):
             return getattr(m,class_name)
         except KeyError,emsg:
             #logger.debug('Error loading tag parser for %s' % self.path)
-            return None 
+            return None
 
     def get_available_encoders(self):
         if self.codec is None:

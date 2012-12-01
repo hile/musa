@@ -5,7 +5,7 @@ Tree prefixes configuration
 import os
 from musa.formats import CODECS
 
-DEFAULT_PATHS = [ 
+DEFAULT_PATHS = [
     '/music',
     '/Volumes/Media',
     os.path.join(os.getenv('HOME'),'Music')
@@ -42,7 +42,7 @@ class MusicTreePrefix(object):
 
     def match(self,path):
         path = path.rstrip(os.sep)
-        if path[:len(self.path)] == self.path:  
+        if path[:len(self.path)] == self.path:
             return True
         realpath = os.path.realpath(path)
         if realpath[:len(self.path)] == self.path:
@@ -71,14 +71,14 @@ class TreePrefixes(list):
                 for codec,defaults in CODECS.items():
                     prefix_path=os.path.join(path,codec)
                     self.append(MusicTreePrefix(prefix_path,defaults['extensions']))
-        
+
             if 'aac' in CODECS.keys():
                 prefix_path=os.path.join(path,'m4a')
                 self.append(MusicTreePrefix(
                     prefix_path,
                     CODECS['aac']['extensions']
                 ))
-        
+
             self.append(MusicTreePrefix(ITUNES_MUSIC,CODECS['aac']['extensions']))
             self.sort(lambda x,y: cmp(x.path,y.path))
 
@@ -101,7 +101,7 @@ class TreePrefixes(list):
                 return prefix
         return None
 
-    def relative_path(self,path):   
+    def relative_path(self,path):
         prefix = self.match(path)
         if not prefix:
             return path

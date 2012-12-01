@@ -1,7 +1,7 @@
 
 import os,re
 import unittest
-from musa import tree 
+from musa import tree
 
 TEST_FILE_PATHS = {
     'load_tests': [
@@ -48,7 +48,7 @@ class TreeParserTestCase(unittest.TestCase):
                 if os.path.isfile(path):
                     os.unlink(path)
             for (root,dirs,files) in os.walk(root,topdown=False):
-                os.rmdir(root) 
+                os.rmdir(root)
             try:
                 os.rmdir(self.root)
             except OSError,(ecode,emsg):
@@ -56,7 +56,7 @@ class TreeParserTestCase(unittest.TestCase):
 
     def test_tree_items(self):
         t = tree.Tree(
-            os.path.join(self.root,'load_tests') 
+            os.path.join(self.root,'load_tests')
         )
         self.assertTrue(isinstance(t,tree.Tree))
         self.assertEquals(len(t),2)
@@ -73,7 +73,7 @@ class TreeParserTestCase(unittest.TestCase):
     def test_tree_file_count(self):
         # Count music files in tree
         t = tree.Tree(
-            os.path.join(self.root,'load_tests') 
+            os.path.join(self.root,'load_tests')
         )
 
         tracks = len(t)
@@ -94,7 +94,7 @@ class TreeParserTestCase(unittest.TestCase):
 
     def test_tree_filter_regexp(self):
         t = tree.Tree(
-            os.path.join(self.root,'name_tests') 
+            os.path.join(self.root,'name_tests')
         )
         re_test = re.compile('^[0-9]+\s+.*$')
         matches = t.filter_tracks(re_test,re_path=False,re_file=True)

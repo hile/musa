@@ -10,6 +10,7 @@ import logging.handlers
 from subprocess import Popen,PIPE
 
 from setproctitle import setproctitle
+from musa.formats import match_metadata
 from musa.tree import Tree,Track,TreeError
 
 def xterm_title(value,max_length=74,bypass_term_check=False):
@@ -36,6 +37,14 @@ class MusaCommand(object):
         self.parser = script.command_parsers.add_parser(name,help=helptext)
         script.commands[name] = self
 
+    def get_tags(self,track):
+        if isinstance(track,Track):
+            try:
+                return track.tags
+            except TreeError,emsg:
+                pass
+        return None
+
     def parse_args(self,args):
         """
         Common argument parsing
@@ -43,14 +52,17 @@ class MusaCommand(object):
         if args.command != self.name:
             raise MusaScriptError('Called wrong sub command class')
 
-        dirs,tracks = [],[]
-        for path in args.paths:  
+        dirs,tracks,metadata = [],[],[]
+        for path in args.paths:
             if os.path.isdir(path):
                 dirs.append(Tree(path))
-            elif os.path.isfile(path):
-                tracks.append(Track(path))
             else:
-                self.script.exit(1,'No such file or directory: %s' % path)
+                try:
+                    tracks.append(Track(path))
+                except TreeError:
+                    match = match_metadata(path)
+                    if match is not None:
+                        metadata.append(match)
 
         tracks_found = False
         for d in dirs:
@@ -58,10 +70,10 @@ class MusaCommand(object):
                 tracks_found = True
                 break
 
-        if not tracks_found and not len(tracks):
-            return [],[]
+        if not tracks_found and not len(tracks) and not len(metadata):
+            return [],[],[]
 
-        return dirs,tracks 
+        return dirs,tracks,metadata
 
 class MusaScriptError(Exception):
     """

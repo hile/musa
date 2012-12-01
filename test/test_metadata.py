@@ -47,13 +47,13 @@ class MetadataTestCase(unittest.TestCase):
         for name in ARTWORK_NAMES:
             m = self.metadata.match(name)
             self.assertIsNotNone(m,'No match for artwork file %s' % name)
-            self.assertEquals(m.description,'Album Artwork') 
+            self.assertEquals(m.description,'Album Artwork')
 
     def test_playlist_files(self):
         for name in VALID_PLAYLIST_NAMES:
             m = self.metadata.match(name)
             self.assertIsNotNone(m,'No match for playlist file %s' % name)
-            self.assertEquals(m.description,'Playlist') 
+            self.assertEquals(m.description,'Playlist')
 
         for name in INVALID_PLAYLIST_NAMES:
             m = self.metadata.match(name)

@@ -6,6 +6,8 @@ Abstraction for album art image format processing
 import os,requests,logging,StringIO
 from PIL import ImageFile
 
+DEFAULT_ARTWORK_FILENAME = 'artwork.jpg'
+
 PIL_EXTENSION_MAP = {
     'JPEG':     'jpg',
     'PNG':      'png',
@@ -148,6 +150,8 @@ class AlbumArt(object):
             raise AlbumArtError('AlbumArt not yet initialized.')
         if fileformat is None:
             fileformat = self.get_fileformat()
+        if os.path.isdir(path):
+            path = os.path.join(path,DEFAULT_ARTWORK_FILENAME)
         if os.path.isfile(path):
             try:
                 os.unlink(path)

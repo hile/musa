@@ -3,6 +3,13 @@ __all__ = ['cli','formats','metadata','tags']
 
 import os,sys,unicodedata
 
+MUSA_USER_DIR = os.path.join(os.getenv('HOME'),'.musa')
+
+class MusaError(Exception):
+    def __str__(self):
+        return self.args[0]
+
+
 def normalized(path,normalization='NFC'):
     """
     Return given path value as normalized unicode string on OS/X,
@@ -60,4 +67,12 @@ class CommandPathCache(list):
             return filter(lambda x: os.path.basename(x) == name, self)[0]
         except IndexError:
             return None
+
+if not os.path.isdir(MUSA_USER_DIR):
+    try:
+        os.makedirs(MUSA_USER_DIR)
+    except OSError,(ecode,emsg):
+        raise MusaError(
+             'Error creating directory %s: %s' % (dst_dir,emsg)
+        )
 
