@@ -97,7 +97,33 @@ class CompareCommand(MusaCommand):
         print 'Tree compare not yet implemented'
 
     def compare_tracks(self,src,dst):
-        print 'Track compare not yet implemented'
+        if isinstance(src,basestring):
+            try:
+                src = Track(src)
+            except TreeError,emsg:
+                self.script.exit(1,emsg)
+        if isinstance(src,basestring):
+            try:
+                dst = Track(dst)
+            except TreeError,emsg:
+                self.script.exit(1,emsg)
+        print 'Comparing %s to %s' % (src.relative_path,dst.relative_path)
+        src_tags = src.tags
+        dst_tags = dst.tags
+
+        for tag in sorted(src_tags.keys()):
+            if tag not in dst_tags.keys():
+                print '%s: missing %s' % (dst.relative_path,tag)
+
+        for tag in sorted(dst_tags.keys()):
+            if tag not in src_tags.keys():
+                print '%s: missing %s' % (src.relative_path,tag)
+
+        for tag in sorted(src_tags.keys()):
+            if tag not in dst_tags.keys():
+                continue
+            if src_tags[tag] != dst_tags[tag]:
+                print 'tag %s: %s != %s' % (tag,src_tags[tag],dst_tags[tag])
 
     def parse_args(self,args):
         dirs,tracks,metadata = MusaCommand.parse_args(self,args)
@@ -303,7 +329,7 @@ class TreeCommand(MusaCommand):
 
     def list_trees(self,dirs):
         for tree in dirs:
-            print '%s: %d music files' % (tree.path,len(tree))
+            print '%s: %d music files' % (tree.relative_path(),len(tree))
 
     def parse_args(self,args):
         dirs,tracks,metadata = MusaCommand.parse_args(self,args)

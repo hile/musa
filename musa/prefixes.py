@@ -72,12 +72,12 @@ class TreePrefixes(list):
                     prefix_path=os.path.join(path,codec)
                     self.append(MusicTreePrefix(prefix_path,defaults['extensions']))
 
-            if 'aac' in CODECS.keys():
-                prefix_path=os.path.join(path,'m4a')
-                self.append(MusicTreePrefix(
-                    prefix_path,
-                    CODECS['aac']['extensions']
-                ))
+                if 'aac' in CODECS.keys():
+                    prefix_path=os.path.join(path,'m4a')
+                    self.append(MusicTreePrefix(
+                        prefix_path,
+                        CODECS['aac']['extensions']
+                    ))
 
             self.append(MusicTreePrefix(ITUNES_MUSIC,CODECS['aac']['extensions']))
             self.sort(lambda x,y: cmp(x.path,y.path))

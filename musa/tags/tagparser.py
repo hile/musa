@@ -5,7 +5,7 @@ Tag metadata reader and writer classes
 import os,base64
 
 from musa import normalized
-from musa.formats import MusaFileFormat 
+from musa.formats import MusaFileFormat
 from musa.tags import TagError
 from musa.tags.constants import STANDARD_TAG_ORDER
 from musa.tags.albumart import AlbumArt,AlbumArtError
@@ -26,19 +26,6 @@ class TagParser(dict):
 
         self.albumart_obj = None
         self.supports_albumart = False
-
-    @property
-    def get_unknown_tags(self):
-        """
-        Must be implemented in child if needed: return empty list here
-        """
-        return []
-
-    @property
-    def albumart(self):
-        if not self.supports_albumart or not self.albumart_obj:
-            return None
-        return self.albumart_obj
 
     def __getattr__(self,attr):
         try:
@@ -134,16 +121,31 @@ class TagParser(dict):
     def __repr__(self):
         return '%s: %s' % (self.codec.description,self.path)
 
+    @property
+    def albumart(self):
+        if not self.supports_albumart or not self.albumart_obj:
+            return None
+        return self.albumart_obj
+
+    @property
+    def mtime(self):
+        return os.stat(self.path).st_mtime
+
+    def remove_tag(self,item):
+        if not self.has_key(item):
+            raise TagError('No such tag: %s' % item)
+        del self[tag]
+
     def get_tag(self,item):
         """
         Return tag from file. Raises TagError if tag is not found
         If tag has multiple values, only first one is returned.
         """
         if not self.has_key(item):
-            raise TagError('No such tag: %s' % item) 
+            raise TagError('No such tag: %s' % item)
         value = self.__flatten_tag__(item)
         if value is None:
-            raise TagError('No such string tag: %s' % item) 
+            raise TagError('No such string tag: %s' % item)
         return value
 
     def set_tag(self,item,value):
@@ -153,6 +155,11 @@ class TagParser(dict):
         NotImplementedError
         """
         raise NotImplementedError('Must implement set_tag in child')
+    def get_unknown_tags(self):
+        """
+        Must be implemented in child if needed: return empty list here
+        """
+        return []
 
     def sort_keys(self,keys):
         """
@@ -211,12 +218,37 @@ class TagParser(dict):
 
         return [self[k] for k,v in self.keys()]
 
+    def get_unknown_tags(self):
+        """
+        Must be implemented in child if needed: return empty list here
+        """
+        return []
+
     def update_tags(self,data):
         if not isinstance(data,dict):
             raise TagError('Updated tags must be a dictionary instance')
         for k,v in data.items():
             self.set_tag(k,v)
         return self.modified
+
+    def replace_tags(self,data):
+        if not isinstance(data,dict):
+            raise TagError('Updated tags must be a dictionary instance')
+        for k,v in self.items():
+            if k not in data.keys():
+                self.remove_tag(k)
+        return self.update_tags(data)
+
+    def remove_tags(self,tags):
+        """
+        Remove given list of tags from file
+        """
+        for tag in tags:
+            if tag not in self.keys():
+                continue
+            del self[tag]
+        if self.modified:
+            self.save()
 
     def remove_unknown_tags(self):
         """
@@ -337,7 +369,26 @@ class Tags(object):
     __instances = {}
     def __init__(self,path,fileformat=None):
         if not Tags.__instances.has_key(path):
-            Tags.__instances[path] = Tags.TagParserInstance(path,fileformat)
+            if not os.path.isfile(path):
+                raise TagError('No such file: %s' % path)
+            path = normalized(os.path.realpath(path))
+            if fileformat is None:
+                fileformat = MusaFileFormat(path)
+            if not isinstance(fileformat,MusaFileFormat):
+                raise TagError('File format must be MusaFileFormat instance')
+            fileformat = fileformat
+            if fileformat.is_metadata:
+                raise TagError('Attempting to load audio tags from metadata file')
+            if fileformat.codec is None:
+                raise TagError('Unsupported audio file: %s' % path)
+            tag_parser = fileformat.get_tag_parser()
+            if tag_parser is None:
+                raise TagError(
+                    'No tag parser available for %s' % fileformat.path
+                )
+            tags_instance = tag_parser(fileformat.codec,path)
+            Tags.__instances[path] = tags_instance
+
         self.__dict__['Tags.__instances'] = Tags.__instances
         self.__dict__['path'] = path
 
@@ -347,96 +398,9 @@ class Tags(object):
     def __setattr__(self,attr,value):
         return setattr(self.__instances[self.path],attr,value)
 
-    class TagParserInstance(dict):
-        def __init__(self,path,fileformat=None):
-            dict.__init__(self)
-            if not os.path.isfile(path):
-                raise TagError('No such file: %s' % path)
-            self.path = normalized(os.path.realpath(path))
-            if fileformat is None:
-                fileformat = MusaFileFormat(path)
-            if not isinstance(fileformat,MusaFileFormat):
-                raise TagError('File format must be MusaFileFormat instance')
-            self.fileformat = fileformat
-            if self.fileformat.codec is None:
-                raise TagError('Unsupported audio file: %s' % path)
-            self.load_tags()
+    def __getitem__(self,item):
+        return self.__instances[self.path].__getitem__(item)
 
-        def load_tags(self):
-            if self.fileformat.is_metadata:
-                raise TagError('Attempting to load audio tags from metadata file')
-            tag_parser = self.fileformat.get_tag_parser()
-            if tag_parser is None:
-                raise TagError(
-                    'No tag parser available for %s' % self.fileformat.path
-                )
-            self.tags = tag_parser(self.fileformat.codec,self.path)
-
-        @property
-        def mtime(self):
-            return os.stat(self.path).st_mtime
-    
-        @property
-        def supports_albumart(self):
-            return self.tags.supports_albumart
-
-        @property
-        def albumart(self):
-            return self.tags.albumart
-
-        def modified(self):
-            return self.tags.modified
-
-        def replace_tags(self,data):
-            if not isinstance(data,dict):
-                raise TagError('Updated tags must be a dictionary instance')
-            for k,v in self.items():
-                if k not in data.keys():
-                    self.remove_tag(k)
-            return self.update_tags(data)
-
-        def remove_tags(self,tags):
-            """
-            Remove given list of tags from file 
-            """
-            for tag in tags:
-                if tag not in self.keys():
-                    continue
-                del self.tags[tag]
-            if self.tags.modified:
-                self.tags.save()
-
-        def save(self):
-            return self.tags.save()
-
-        def as_dict(self):
-            return dict(self.items())
-
-        def update_tags(self,tags):
-            """
-            Save tags given in a dictionary to the target file
-            """
-            if self.tags.update_tags(tags):
-                self.tags.save()
-
-        def remove_tag(self,tag):
-            del self.tags[tag]
-
-        def set_tag(self,tag,value):
-            return self.tags.set_tag(tag,value)
-
-        def get_tag(self,tag):
-            return self.tags.get_tag(tag)
-
-        def has_key(self,item):
-            return self.tags.has_key(item)
-
-        def keys(self):
-            return self.tags.keys()
-
-        def items(self):
-            return self.tags.items()
-
-        def values (self):
-            return self.tags.values()
+    def __setitem__(self,item,value):
+        return self.__instances[self.path].__setitem__(item,value)
 

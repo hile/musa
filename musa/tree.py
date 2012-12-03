@@ -59,8 +59,11 @@ class IterableTrackFolder(object):
         iterable.__delslice__(0,len(iterable))
         self.invalid_paths.__delslice__(0,len(self.invalid_paths))
 
-    def relative_path(self,path):
-        return self.prefixes.relative_path(path)
+    def relative_path(self,path=None):
+        if path is not None:
+            return self.prefixes.relative_path(path)
+        else:
+            return self.prefixes.relative_path(self.path)
 
 class Tree(IterableTrackFolder):
     def __init__(self,path):
@@ -166,17 +169,17 @@ class Track(MusaFileFormat):
         self.tags_loaded = False
         self.file_tags = None
 
-    def __getattr__(self,attr):
-        if attr=='tags':
-            if not self.tags_loaded:
-                self.tags_loaded = True
-                try:
-                    self.file_tags = Tags(self.path,fileformat=self)
-                except TagError,emsg:
-                    raise TreeError('Error loading tags: %s' % emsg)
-            return self.file_tags
-        raise AttributeError('No such Track attribute: %s' % attr)
+    @property
+    def tags(self):
+        try:
+            self.file_tags = Tags(self.path,fileformat=self)
+        except TagError,emsg:
+            raise TreeError('Error loading tags: %s' % emsg)
+        if not self.tags_loaded:
+            self.tags_loaded = True
+        return self.file_tags
 
+    @property
     def relative_path(self):
         return self.prefixes.relative_path(self.path)
 
