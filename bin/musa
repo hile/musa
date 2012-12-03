@@ -207,11 +207,6 @@ class ConvertCommand(MusaCommand):
                 self.script.exit(1,'Could not find codec matching tree')
             self.enqueue(track,dst)
 
-        if len(self.transcoder):
-            self.transcoder.run()
-        else:
-            self.script.exit(0,'Nothing to transcode')
-
 
     def parse_args(self,args):
         dirs,tracks,metadata = MusaCommand.parse_args(self,args)
