@@ -95,8 +95,18 @@ class TreePrefixes(list):
         else:
             raise PrefixError('prefix must be string or MusicTreePrefix instance')
 
-    def match(self,path):
+    def match_extension(self,extension,match_existing=False):
         for prefix in self.__instance:
+            if match_existing and not os.path.isdir(prefix.path):
+                continue
+            if prefix.match_extension(extension):
+                return prefix
+        return None
+
+    def match(self,path,match_existing=False):
+        for prefix in self.__instance:
+            if match_existing and not os.path.isdir(prefix.path):
+                continue
             if prefix.match(path):
                 return prefix
         return None

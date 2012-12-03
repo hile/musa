@@ -218,6 +218,9 @@ class TagParser(dict):
 
         return [self[k] for k,v in self.keys()]
 
+    def as_dict(self):
+        return dict(self.items())
+
     def get_unknown_tags(self):
         """
         Must be implemented in child if needed: return empty list here

@@ -9,6 +9,7 @@ from musa.cli import MusaScript,MusaCommand
 from musa.tree import Tree,Track,TreeError
 from musa.tags import TagError
 from musa.tree import Tree,Track
+from musa.prefixes import TreePrefixes
 from musa.metadata import CoverArt
 from musa.transcoder import MusaTranscoder,TranscoderError
 from musa.tags.albumart import AlbumArt,AlbumArtError
@@ -143,11 +144,19 @@ class CompareCommand(MusaCommand):
 class ConvertCommand(MusaCommand):
     def __init__(self,script):
         MusaCommand.__init__(self,script,'convert','Transcode file formats')
+        self.prefixes = TreePrefixes()
+
         self.parser.add_argument('-t','--threads', type=int, default=1,
             help='Number of transcoder threads to use'
         )
+        self.parser.add_argument('-y','--dry-run', action='store_true',
+            help='Only show which tracks would have been transcoded'
+        )
         self.parser.add_argument('-f','--overwrite', action='store_true',
             help='Overwrite existing target files'
+        )
+        self.parser.add_argument('-c','--codec',
+            help='Destination file format for tree mode'
         )
         self.parser.add_argument('paths', metavar='path', nargs='*',
             help='Paths to process'
@@ -160,6 +169,7 @@ class ConvertCommand(MusaCommand):
             except TreeError,emsg:
                 self.script.exit(1,emsg)
         if isinstance(dst,basestring):
+
             try:
                 dst = Track(dst)
             except TreeError,emsg:
@@ -173,12 +183,35 @@ class ConvertCommand(MusaCommand):
         except TranscoderError,emsg:
             self.script.exit(1,emsg)
 
-    def transcode_tree(self,src,dst):
-        if not isinstance(src,Tree) or not isinstance(dst,Tree):
-            self.script.error(1,'Tree transcoding requires 2 Tree objects')
-        for track in tree:
-            dst_track = os.path.join(dst.path,tree.relative_path(track))
-            self.enqueue(track,dst_track)
+    def transcode_tree(self,src,dst=None,dst_codec=None):
+        if not isinstance(src,Tree):
+            self.script.exit(1,'Tree transcoding requires a source tree')
+        if dst_codec is None and dst is None:
+            self.script.exit(1,'Tree transcoding requires destination tree or codec name')
+
+        for track in src:
+            if dst_codec is not None:
+                prefix = self.prefixes.match_extension(dst_codec,match_existing=True)
+                if prefix is None:
+                    self.prefixes.match_extension(dst_codec,match_existing=False)
+            else:
+                prefix = self.prefixes.match(dst.path,match_existing=True)
+                if prefix is None:
+                    prefix = self.prefixes.match(dst.path,match_existing=True)
+
+            if prefix is not None:
+                codec = prefix.extensions[0]
+                dst_relpath = '%s.%s' % (os.path.splitext(track.relative_path)[0],codec)
+                dst = Track(os.path.join(prefix.path,dst_relpath))
+            else:
+                self.script.exit(1,'Could not find codec matching tree')
+            self.enqueue(track,dst)
+
+        if len(self.transcoder):
+            self.transcoder.run()
+        else:
+            self.script.exit(0,'Nothing to transcode')
+
 
     def parse_args(self,args):
         dirs,tracks,metadata = MusaCommand.parse_args(self,args)
@@ -187,11 +220,13 @@ class ConvertCommand(MusaCommand):
         if not track_count:
             self.script.exit(1,'No music files detected')
 
-        self.transcoder = MusaTranscoder(args.threads,args.overwrite)
+        self.transcoder = MusaTranscoder(args.threads,args.overwrite,args.dry_run)
         self.overwrite = args.overwrite
 
-        if len(dirs)==2:
-            self.transcode_trees(*dirs)
+        if len(dirs)==1 and args.codec is not None:
+            self.transcode_tree(*dirs,dst_codec=args.codec)
+        elif len(dirs)==2:
+            self.transcode_tree(*dirs)
         elif len(tracks)==2:
             self.enqueue(*tracks)
         else:

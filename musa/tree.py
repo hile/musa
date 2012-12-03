@@ -59,9 +59,12 @@ class IterableTrackFolder(object):
         iterable.__delslice__(0,len(iterable))
         self.invalid_paths.__delslice__(0,len(self.invalid_paths))
 
-    def relative_path(self,path=None):
-        if path is not None:
-            return self.prefixes.relative_path(path)
+    def relative_path(self,item=None):
+        if item is not None:
+            if isinstance(item,Track):
+                return self.prefixes.relative_path(item.path)
+            else:
+                return self.prefixes.relative_path(item)
         else:
             return self.prefixes.relative_path(self.path)
 

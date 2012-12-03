@@ -24,10 +24,10 @@ CODECS = {
 
   'aac': {
     'description': 'Advanced Audio Coding',
-    'extensions': ['aac', 'm4a', 'mp4'],
+    'extensions': ['m4a','aac', 'mp4'],
     'encoders': [
         'neroAacEnc -if FILE -of OUTFILE -br 256000 -2pass',
-        'afconvert -b 256000 -v -f m4af -d aac FILE OUTFILE',
+        'afconvert -b 256000 --soundcheck-generate -f m4af -d aac FILE OUTFILE',
     ],
     'decoders': [
         'neroAacDec -if OUTFILE -of FILE',
