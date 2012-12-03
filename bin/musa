@@ -330,7 +330,7 @@ class TagsCommand(MusaCommand):
                 elif isinstance(target,Track):
                     self.update_tags(target,tags)
 
-        if args.edit:
+        elif args.edit:
             for target in dirs + tracks:
                 if isinstance(target,Tree):
                     for track in target:
@@ -338,7 +338,7 @@ class TagsCommand(MusaCommand):
                 elif isinstance(target,Track):
                     self.edit_tags(target)
 
-        if args.list:
+        else:
             for target in dirs + tracks:
                 if isinstance(target,Tree):
                     for track in target:
