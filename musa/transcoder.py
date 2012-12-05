@@ -2,12 +2,12 @@
 Module for transcoding
 """
 
-import sys,os,time,tempfile,threading,subprocess
+import sys,os,shutil,time,tempfile,threading,subprocess
 
 from musa import MUSA_USER_DIR
 from musa.cli import MusaThread,MusaScriptError
 from musa.tags import TagError
-from musa.tree import Tree,Track,TreeError
+from musa.tree import Tree,Album,Track,TreeError
 
 class TranscoderError(Exception):
     def __str__(self):
@@ -61,9 +61,21 @@ class TranscoderThread(MusaThread):
         wav = tempfile.NamedTemporaryFile(
             dir=MUSA_USER_DIR, prefix='musa-', suffix='.wav',
         )
+        src_tmp = tempfile.NamedTemporaryFile(
+            dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.src.extension
+        )
+        src = Track(src_tmp.name)
+        dst_tmp = tempfile.NamedTemporaryFile(
+            dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.dst.extension
+        )
+        src = Track(src_tmp.name)
+        dst = Track(dst_tmp.name)
+        if not self.dry_run:
+            open(src.path,'wb').write(open(self.src.path,'rb').read())
+
         try:
-            decoder = self.src.get_decoder_command(wav.name)
-            encoder = self.dst.get_encoder_command(wav.name)
+            decoder = src.get_decoder_command(wav.name)
+            encoder = dst.get_encoder_command(wav.name)
         except TreeError,emsg:
             raise TranscoderError(emsg)
 
@@ -73,11 +85,15 @@ class TranscoderThread(MusaThread):
                 self.execute(decoder)
                 self.status = 'encoding: %s' % ' '.join(encoder)
                 self.execute(encoder)
+                self.status = 'writing: %s' % (self.dst.path)
+                print 'Writing target file: %s' % self.dst.path
+                shutil.copyfile(dst.path,self.dst.path)
             else:
                 print 'Execute: %s' % ' '.join(decoder)
                 print 'Execute: %s' % ' '.join(encoder)
             del(wav)
         except TranscoderError,emsg:
+            print emsg
             if wav and os.path.isfile(wav):
                 try:
                     del(wav)
@@ -101,6 +117,7 @@ class TranscoderThread(MusaThread):
                     print 'Copy tags to %s' % self.dst.path
         except TagError,emsg:
             raise TranscoderError(emsg)
+
         self.status = 'finished'
 
 class MusaTranscoder(list):
@@ -140,6 +157,7 @@ class MusaTranscoder(list):
                 time.sleep(0.5)
                 continue
             (src,dst) = self.pop(0)
+            print '%s to %s' % (src.path,dst.path)
             t = TranscoderThread(src,dst,self.overwrite,self.dry_run)
             t.start()
         active = threading.active_count()

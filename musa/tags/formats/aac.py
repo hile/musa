@@ -121,10 +121,10 @@ class AACAlbumArt(TrackAlbumart):
         TrackAlbumart.import_albumart(self,albumart)
 
         try:
-            img_format = AAC_ALBUMART_PIL_FORMAT_MAP[self.albumart.out_format]
+            img_format = AAC_ALBUMART_PIL_FORMAT_MAP[self.albumart.get_fileformat()]
         except KeyError:
             raise TagError(
-                'Unsupported albumart format %s' % self.albumart.out_format
+                'Unsupported albumart format %s' % self.albumart.get_fileformat()
             )
         try:
             tag = MP4Cover(data=self.albumart.dump(),imageformat=img_format)
@@ -134,6 +134,7 @@ class AACAlbumArt(TrackAlbumart):
         if self.track.entry.has_key(self.tag):
             del self.track.entry[self.tag]
         self.track.entry[self.tag] = [tag]
+        print 'Imported AAC albumart %s' % img_format
         self.track.modified = True
 
 class AACIntegerTuple(TrackNumberingTag):
@@ -246,42 +247,44 @@ class aac(TagParser):
         """
         if item == 'tracknumber':
             self.track_numbering.value = value
-            return
-        if item == 'totaltracks':
+        elif item == 'totaltracks':
             self.track_numbering.total = value
-            return
-        if item == 'disknumber':
+        elif item == 'disknumber':
             self.disk_numbering.value = value
-            return
-        if item == 'totaldisks':
+        elif item == 'totaldisks':
             self.disk_numbering.total = value
-            return
+        else:
+            if not isinstance(value,list):
+                value = [value]
 
-        if not isinstance(value,list):
-            value = [value]
+            tags = self.__tag2fields__(item)
+            item = tags[0]
+            for tag in tags[1:]:
+                if self.entry.has_key(tag):
+                    del self.entry[tag]
 
-        tags = self.__tag2fields__(item)
-        item = tags[0]
-        for tag in tags[1:]:
-            if self.entry.has_key(tag):
-                del self.entry[tag]
-
-        entries =[]
-        for v in value:
-            if AAC_TAG_FORMATTERS.has_key(item):
-                formatted = AAC_TAG_FORMATTERS[item](v)
-                entries.append(formatted)
-            else:
-                if not isinstance(v,unicode):
-                    v = unicode(v,'utf-8')
-                entries.append(v)
-        self.entry[item] = entries
+            entries =[]
+            for v in value:
+                if AAC_TAG_FORMATTERS.has_key(item):
+                    formatted = AAC_TAG_FORMATTERS[item](v)
+                    entries.append(formatted)
+                else:
+                    if not isinstance(v,unicode):
+                        v = unicode(v,'utf-8')
+                    entries.append(v)
+            self.entry[item] = entries
         self.modified = True
 
     def save(self):
         """
         Save AAC tags to the file
         """
+        for attr in ['track_numbering','disk_numbering']:
+            try:
+                tag = getattr(self,attr)
+                tag.save_tag()
+            except ValueError,emsg:
+                print 'Error processing %s: %s' % (attr,emsg)
         try:
             TagParser.save(self)
         except MP4MetadataValueError,emsg:

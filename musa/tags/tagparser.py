@@ -69,7 +69,7 @@ class TagParser(dict):
     def __setitem__(self,item,value):
         if isinstance(item,AlbumArt):
             try:
-                self.albumart.import_albumart(value)
+                self.albumart_obj.import_albumart(value)
             except AlbumArtError,emsg:
                 raise TagError('Error setting albumart: %s' % emsg)
         self.set_tag(item,value)
@@ -122,14 +122,17 @@ class TagParser(dict):
         return '%s: %s' % (self.codec.description,self.path)
 
     @property
+    def mtime(self):
+        return os.stat(self.path).st_mtime
+
+    @property
     def albumart(self):
         if not self.supports_albumart or not self.albumart_obj:
             return None
         return self.albumart_obj
 
-    @property
-    def mtime(self):
-        return os.stat(self.path).st_mtime
+    def set_albumart(self,albumart):
+        return self.albumart_obj.import_albumart(albumart)
 
     def remove_tag(self,item):
         if not self.has_key(item):
@@ -155,6 +158,7 @@ class TagParser(dict):
         NotImplementedError
         """
         raise NotImplementedError('Must implement set_tag in child')
+
     def get_unknown_tags(self):
         """
         Must be implemented in child if needed: return empty list here

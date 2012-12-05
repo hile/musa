@@ -3,12 +3,11 @@
 Music tagging command
 """
 
-import os,sys
+import os,sys,shutil
 
 from musa.cli import MusaScript,MusaCommand
-from musa.tree import Tree,Track,TreeError
+from musa.tree import Tree,Album,Track,TreeError
 from musa.tags import TagError
-from musa.tree import Tree,Track
 from musa.prefixes import TreePrefixes
 from musa.metadata import CoverArt
 from musa.transcoder import MusaTranscoder,TranscoderError
@@ -57,13 +56,69 @@ class AlbumArtCommand(MusaCommand):
         albumart = AlbumArt(coverart.path)
         print '%s: %s' % (coverart.path,albumart)
 
+    def embed(self,target,albumart=None):
+        if isinstance(target,Tree):
+            albums = target.as_albums()
+            if not albums:
+                self.script.exit(1,'No albums found from path %s' % target.path)
+            if len(albums)>1:
+                print albums
+                self.script.exit(1,'Albumart can only embedded to single album tree targets')
+            album = albums[0]
+            if albumart is None:
+                albumart = album.albumart
+            if albumart is None:
+                return
+            for track in album:
+                tags = track.tags
+                if tags is None:
+                    continue
+                tags.set_albumart(albumart)
+                tags.save()
+        elif isinstance(target,Track):
+            if albumart is None:
+                track_album = Album(os.path.dirname(target.path))
+                albumart = track_album.albumart
+            if albumart is None:
+                return
+            tags = target.tags
+            if tags is None:
+                return
+            tags.set_albumart(albumart)
+            #for k,v in tags.entry.items(): print k,v
+            tags.save()
+
+    def extract(self,target):
+        if isinstance(target,Tree):
+            albums = target.as_albums()
+            if not albums:
+                self.script.exit(1,'No albums found from path %s' % target.path)
+            for album in albums:
+                track = album[0]
+                tags = track.tags
+                if tags is None:
+                    print 'No tags in %s' % track.path
+                    continue
+                if not tags.albumart:
+                    print 'No album art in %s' % track.path
+                    continue
+                albumart_path = os.path.join(os.path.dirname(track.path),'artwork.jpg')
+                print 'Saving %s: %s' % (albumart_path,tags.albumart)
+                #tags.albumart.save(albumart_path)
+        elif isinstance(target,Track):
+            tags = target.tags
+            if tags is None:
+                print 'No tags in %s' % target.path
+                return
+            if not tags.albumart:
+                print 'No album art in %s' % target.path
+                return
+            albumart_path = os.path.join(os.path.dirname(target.path),'artwork.jpg')
+            print 'Saving %s: %s' % (albumart_path,tags.albumart)
+            #tags.albumart.save(albumart_path)
+
     def parse_args(self,args):
         dirs,tracks,metadata = MusaCommand.parse_args(self,args)
-
-        if args.embed:
-            self.script.exit(1,'Embedding not yet implemented')
-        if args.extract:
-            self.script.exit(1,'Extracting not yet implemented')
 
         if args.info:
             for m in metadata:
@@ -85,6 +140,19 @@ class AlbumArtCommand(MusaCommand):
                 self.script.exit(1,'Error fetching albumart: %s' % emsg)
             for target in dirs:
                 albumart.save(target.path)
+        else:
+            albumart = None
+
+        if args.embed:
+            for tree in dirs:
+                self.embed(tree,albumart)
+            for track in tracks:
+                self.embed(track,albumart)
+        if args.extract:
+            for tree in dirs:
+                self.extract(tree)
+            for track in tracks:
+                self.extrack(track)
 
 class CompareCommand(MusaCommand):
     def __init__(self,script):
@@ -149,6 +217,9 @@ class ConvertCommand(MusaCommand):
         self.parser.add_argument('-t','--threads', type=int, default=1,
             help='Number of transcoder threads to use'
         )
+        self.parser.add_argument('-m','--metadata', action='store_true',
+            help='Copy album metadata'
+        )
         self.parser.add_argument('-y','--dry-run', action='store_true',
             help='Only show which tracks would have been transcoded'
         )
@@ -174,6 +245,11 @@ class ConvertCommand(MusaCommand):
                 dst = Track(dst)
             except TreeError,emsg:
                 self.script.exit(1,emsg)
+
+        src_album = Album(os.path.dirname(src.path))
+        dst_album = Album(os.path.dirname(dst.path))
+        if src_album.path not in self.metadata_paths_to_copy.keys():
+            self.metadata_paths_to_copy[src_album.path] = (src_album,dst_album)
 
         if os.path.isfile(dst.path) and not self.overwrite:
             return
@@ -207,6 +283,20 @@ class ConvertCommand(MusaCommand):
                 self.script.exit(1,'Could not find codec matching tree')
             self.enqueue(track,dst)
 
+    def copy_metadata(self,dry_run=False):
+        for src_path,albums in self.metadata_paths_to_copy.items():
+            src_album,dst_album = albums
+            for m in src_album.metadata:
+                dst_path = os.path.join(
+                    dst_album.path,os.path.basename(m.path)
+                )
+                if dry_run:
+                    print dst_path
+                elif self.overwrite or not os.path.isfile(dst_path):
+                    try:
+                        shutil.copyfile(m.path,dst_path)
+                    except OSError,(ecode,emsg):
+                        self.script.exit(1,'Error writing %s: %s' % (dst_path,emsg))
 
     def parse_args(self,args):
         dirs,tracks,metadata = MusaCommand.parse_args(self,args)
@@ -218,21 +308,21 @@ class ConvertCommand(MusaCommand):
         self.transcoder = MusaTranscoder(args.threads,args.overwrite,args.dry_run)
         self.overwrite = args.overwrite
 
+        self.metadata_paths_to_copy = {}
         if len(dirs)==1 and args.codec is not None:
             self.transcode_tree(*dirs,dst_codec=args.codec)
         elif len(dirs)==2:
             self.transcode_tree(*dirs)
         elif len(tracks)==2:
             self.enqueue(*tracks)
-        else:
-            # TODO - add modes to transcode by codec etc.
-            pass
 
         if len(self.transcoder):
             self.transcoder.run()
         else:
-            self.script.exit(0,'Nothing to transcode')
+            self.script.log.debug(0,'Nothing to transcode')
 
+        if args.metadata:
+            self.copy_metadata(args.dry_run)
 
 class SyncCommand(MusaCommand):
     def __init__(self,script):
@@ -308,7 +398,8 @@ class TagsCommand(MusaCommand):
         if track_tags is None:
             return None
         try:
-            return track_tags.update_tags(new_tags)
+            if track_tags.update_tags(new_tags):
+                track_tags.save()
         except TagError,emsg:
             self.script.exit(1,
                 'Error saving tags to %s: %s' % (track.path,emsg)
@@ -329,6 +420,14 @@ class TagsCommand(MusaCommand):
                         self.update_tags(track,tags)
                 elif isinstance(target,Track):
                     self.update_tags(target,tags)
+
+        elif args.delete:
+            for target in dirs + tracks:
+                if isinstance(target,Tree):
+                    for track in target:
+                        track.tags.remove_tags(args.delete)
+                elif isinstance(target,Track):
+                    target.tags.remove_tags(args.delete)
 
         elif args.edit:
             for target in dirs + tracks:

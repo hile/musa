@@ -4,6 +4,8 @@ import os,re
 from musa.formats import MusaFileFormat,match_codec,match_metadata,CODECS
 from musa.prefixes import TreePrefixes,PrefixError
 from musa.tags import TagError
+from musa.tags.albumart import AlbumArt,AlbumArtError
+from musa.metadata import CoverArt
 from musa.tags.tagparser import Tags
 
 class TreeError(Exception):
@@ -14,14 +16,19 @@ class IterableTrackFolder(object):
     def __init__(self,path,iterable):
         self.__next = None
         self.__iterable = iterable
+        if path in ['.','']:
+            path = os.path.realpath(path)
         self.path = path
         self.prefixes = TreePrefixes()
         self.invalid_paths = []
         self.has_been_iterated = False
         setattr(self,iterable,[])
 
-    def __iter__(self):
-        return self
+    def __getitem__(self,item):
+        if not self.has_been_iterated:
+            self.load()
+        iterable = getattr(self,self.__iterable)
+        return iterable[item]
 
     def __len__(self):
         iterable = getattr(self,self.__iterable)
@@ -31,6 +38,9 @@ class IterableTrackFolder(object):
             return len(iterable) - len(self.invalid_paths)
         else:
             return 0
+
+    def __iter__(self):
+        return self
 
     def next(self):
         iterable = getattr(self,self.__iterable)
@@ -70,8 +80,6 @@ class IterableTrackFolder(object):
 
 class Tree(IterableTrackFolder):
     def __init__(self,path):
-        if path=='.':
-            path = os.path.realpath(path)
         IterableTrackFolder.__init__(self,path,'files')
         self.empty_dirs = []
 
@@ -125,27 +133,46 @@ class Tree(IterableTrackFolder):
             return tracks
 
     def as_albums(self):
+        if not self.has_been_iterated:
+            self.load()
         return [Album(path) for path in sorted(set(d[0] for d in self.files))]
 
 class Album(IterableTrackFolder):
     def __init__(self,path):
         IterableTrackFolder.__init__(self,path,'files')
-        self.metadata = []
+        self.metadata_files = []
+
+    def __getitem__(self,item):
+        item = IterableTrackFolder.__getitem__(self,item)
+        return Track(os.path.join(*item))
 
     def load(self):
-        if not os.path.isdir(self.path):
-            raise TreeError('Not a directory: %s' % self.path)
-
         IterableTrackFolder.load(self)
         for f in os.listdir(self.path):
             if match_codec(f) is not None:
                 self.files.append((self.path,f))
             else:
                 metadata = match_metadata(f)
-                if metadata:
-                    self.metadata.append(
-                        metadata.__class__(os.path.join(self.path,f))
-                    )
+                if not metadata:
+                    continue
+                self.metadata_files.append(
+                    metadata.__class__(os.path.join(self.path,f))
+                )
+
+    @property
+    def metadata(self):
+        if not self.has_been_iterated:
+            self.load()
+        return self.metadata_files
+
+    @property
+    def albumart(self):
+        if not len(self.metadata):
+            return None
+        for m in self.metadata:
+            if isinstance(m,CoverArt):
+                return AlbumArt(m.path)
+        return None
 
 class MetaDataFile(object):
     def __init__(self,path,metadata=None):
@@ -185,6 +212,10 @@ class Track(MusaFileFormat):
     @property
     def relative_path(self):
         return self.prefixes.relative_path(self.path)
+
+    @property
+    def extension(self):
+        return os.path.splitext(self.path)[1][1:]
 
     def get_album_tracks(self):
         path = os.path.dirname(self.path)

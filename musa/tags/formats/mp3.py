@@ -233,6 +233,7 @@ class mp3(TagParser):
         for t in tags:
             if self.entry.tags.has_key(t):
                 del(self.entry.tags[t])
+                self.modified = True
 
     def keys(self):
         """
