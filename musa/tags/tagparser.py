@@ -259,6 +259,16 @@ class TagParser(dict):
         if self.modified:
             self.save()
 
+    def clear_tags(self):
+        """
+        Remove all tags from file
+        """
+        for tag in self.keys():
+            del self[tag]
+        if self.modified:
+            self.log.debug('Cleared all tags from file')
+            self.save()
+
     def remove_unknown_tags(self):
         """
         Remove any tags which we don't know about.

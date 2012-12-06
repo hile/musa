@@ -223,6 +223,21 @@ class MusaCommand(object):
         for track in tracks:
             command(track=track,**kwargs)
 
+    def read_input_to_dict(self,fd):
+        tags = {}
+        with fd as input:
+            for line in [l.rstrip() for l in input]:
+                tag,value = None, None
+                for sep in ['=',' ','\t']:
+                    try:
+                        tag,value = [x.strip() for x in line.split(sep,1)]
+                    except ValueError:
+                        pass
+                if tag is None or value is None:
+                    raise MusaScriptError('Invalid tag input line: %s' % line)
+                tags[tag] = unicode(value)
+        return tags
+
     def parse_args(self,args):
         """
         Common argument parsing

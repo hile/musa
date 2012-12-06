@@ -3,9 +3,9 @@
 Music tagging command
 """
 
-import os,sys,shutil
+import os,sys,shutil,argparse
 
-from musa.cli import MusaScript,MusaCommand
+from musa.cli import MusaScript,MusaCommand,MusaScriptError
 from musa.tree import Tree,Album,Track,TreeError
 from musa.tags import TagError
 from musa.metadata import CoverArt
@@ -319,17 +319,18 @@ class SyncCommand(MusaCommand):
 
 class TagsCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','delete','edit'] )
+        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','clear','delete','edit','input_file'] )
 
         self.parser.add_argument('-s','--set',action='append', help='Set tag from value (tag=value)')
         self.parser.add_argument('-d','--delete',action='append', help='Delete tag')
-        self.parser.add_argument('-i','--input-file', help='Set new tags from input file')
+        self.parser.add_argument('-C','--clear',action='store_true', help='Clear all tags')
         self.parser.add_argument('-e','--edit',action='store_true', help='Edit tags in external editor')
         self.parser.add_argument('-l','--list',action='store_true', help='List tags in given files')
         self.parser.add_argument('-p','--print-path',action='store_true', help='Print file path before tags')
         self.parser.add_argument('-r','--print-raw',action='store_true', help='Print raw tag values')
         self.parser.add_argument('-x','--xml',action='store_true', help='XML output')
         self.parser.add_argument('-P','--path-format', help='String format for --print-path flag')
+        self.parser.add_argument('-i','--input-file',type=argparse.FileType('r'), help='Set new tags from input file')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
 
         self.xmltree = XMLTrackTree()
@@ -369,6 +370,15 @@ class TagsCommand(MusaCommand):
         except TagError,emsg:
             self.script.exit(1, 'Error removing tags from %s: %s' % (track.path,emsg) )
 
+    def clear_tags(self,track):
+        track_tags = self.get_tags(track)
+        if track_tags is None:
+            return None
+        try:
+            track_tags.clear_tags()
+        except TagError,emsg:
+            self.script.exit(1, 'Error removing tags from %s: %s' % (track.path,emsg) )
+
     def update_tags(self,track,tags):
         track_tags = self.get_tags(track)
         if track_tags is None:
@@ -390,13 +400,24 @@ class TagsCommand(MusaCommand):
         if not track_count:
             self.script.exit(1,'No music files detected')
 
-        if args.set:
-            tags = dict(map(lambda v: v.split('=',1), args.set))
-            self.process_tracks(trees,tracks,self.update_tags,tags=tags)
+        if args.clear:
+            self.process_tracks(trees,tracks,self.clear_tags)
 
         if args.delete:
             tags = args.delete
             self.process_tracks(trees,tracks,self.remove_tags,tags=tags)
+
+        if args.set:
+            tags = dict(map(lambda v: v.split('=',1), args.set))
+            self.process_tracks(trees,tracks,self.update_tags,tags=tags)
+
+        if args.input_file:
+            try:
+                tags = self.read_input_to_dict(args.input_file)
+            except MusaScriptError,emsg:
+                self.script.exit(1,str(emsg).strip())
+            self.process_tracks(trees,tracks,self.update_tags,tags=tags)
+
 
         if args.edit:
             self.process_tracks(trees,tracks,self.edit_tags)

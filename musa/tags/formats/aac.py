@@ -151,6 +151,13 @@ class AACIntegerTuple(TrackNumberingTag):
 
         self.value,self.total = self.track.entry[self.tag][0]
 
+    def delete_tag(self):
+        self.value = None
+        self.total = None
+        if self.tag in self.track.entry.keys():
+            del self.track.entry[self.tag]
+            self.track.modified = True
+
     def save_tag(self):
         """
         Export this numbering information back to AAC tags.
@@ -214,26 +221,12 @@ class aac(TagParser):
             return keys
         return TagParser.__getitem__(self,item)
 
-    def keys(self):
-        """
-        Return tag names sorted with self.sort_keys()
-
-        Itunes internal tags are ignored from results
-        """
-        keys = TagParser.keys(self)
-        if 'trkn' in keys:
-            keys.extend(['tracknumber','totaltracks'])
-            keys.remove('trkn')
-        if 'disk' in keys:
-            keys.extend(['disknumber','totaldisks'])
-            keys.remove('disk')
-        if 'covr' in keys:
-            keys.remove('covr')
-        for itunes_tags in ITUNES_TAG_MAP.values():
-            for tag in itunes_tags:
-                if tag in keys:
-                    keys.remove(tag)
-        return self.sort_keys(keys)
+    def __delitem__(self,item):
+        if item in ['tracknumber','totaltracks']:
+            return self.track_numbering.delete_tag()
+        if item in ['disknumber','totaldisks']:
+            return self.dsk_numbering.delete_tag()
+        return TagParser.__delitem__(self,item)
 
     def set_tag(self,item,value):
         """
@@ -277,6 +270,27 @@ class aac(TagParser):
             self.entry[item] = entries
 
         self.modified = True
+
+    def keys(self):
+        """
+        Return tag names sorted with self.sort_keys()
+
+        Itunes internal tags are ignored from results
+        """
+        keys = TagParser.keys(self)
+        if 'trkn' in keys:
+            keys.extend(['tracknumber','totaltracks'])
+            keys.remove('trkn')
+        if 'disk' in keys:
+            keys.extend(['disknumber','totaldisks'])
+            keys.remove('disk')
+        if 'covr' in keys:
+            keys.remove('covr')
+        for itunes_tags in ITUNES_TAG_MAP.values():
+            for tag in itunes_tags:
+                if tag in keys:
+                    keys.remove(tag)
+        return self.sort_keys(keys)
 
     def save(self):
         """
