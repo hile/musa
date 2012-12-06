@@ -44,7 +44,6 @@ class MusaLogger(object):
                 return self.loglevel
             if attr in self.keys():
                 return self[attr]
-            print 'logger %s handlers %s' % (self.name,self.keys())
             raise AttributeError('No such ScriptLoggerInstance attribute: %s' % attr)
 
         def __setattr__(self,attr,value):

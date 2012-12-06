@@ -44,9 +44,7 @@ class TranscoderThread(MusaThread):
                 else:
                     self.log.debug('remove: %s' % self.dst.path)
             except OSError,(ecode,emsg):
-                raise TranscoderError(
-                    'Error removing %s: %s' % (self.dst.path,emsg)
-                )
+                raise TranscoderError('Error removing %s: %s' % (self.dst.path,emsg) )
 
         dst_dir = os.path.dirname(self.dst.path)
         if not os.path.isdir(dst_dir):
@@ -56,20 +54,12 @@ class TranscoderThread(MusaThread):
                 else:
                     self.log.debug('create directory: %s' % dst_dir)
             except OSError,(ecode,emsg):
-                raise TranscoderError(
-                    'Error creating directory %s: %s' % (dst_dir,emsg)
-                )
+                raise TranscoderError('Error creating directory %s: %s' % (dst_dir,emsg) )
 
-        wav = tempfile.NamedTemporaryFile(
-            dir=MUSA_USER_DIR, prefix='musa-', suffix='.wav',
-        )
-        src_tmp = tempfile.NamedTemporaryFile(
-            dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.src.extension
-        )
+        wav = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.wav', )
+        src_tmp = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.src.extension )
         src = Track(src_tmp.name)
-        dst_tmp = tempfile.NamedTemporaryFile(
-            dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.dst.extension
-        )
+        dst_tmp = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.dst.extension )
         src = Track(src_tmp.name)
         dst = Track(dst_tmp.name)
         if not self.dry_run:

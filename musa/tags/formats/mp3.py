@@ -118,9 +118,7 @@ class MP3NumberingTag(TrackNumberingTag):
             self.value = int(self.value)
             self.total = int(self.total)
         except ValueError:
-            raise TagError('Unsupported tag value for %s: %s' %
-                (self.tag,self.track.entry[self.tag].text[0])
-            )
+            raise TagError('Unsupported tag value for %s: %s' % (self.tag,self.track.entry[self.tag].text[0]) )
 
     def save_tag(self):
         """
@@ -219,10 +217,7 @@ class mp3(TagParser):
                     try:
                         value = unicode(value,'utf-8')
                     except UnicodeDecodeError,emsg:
-                        raise TagError(
-                            'Error decoding %s tag %s: %s' %
-                            (self.path,field,emsg)
-                        )
+                        raise TagError('Error decoding %s tag %s: %s' % (self.path,field,emsg) )
                 values.append(value)
             return values
         raise KeyError('No such tag: %s' % fields)

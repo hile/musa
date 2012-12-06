@@ -84,18 +84,14 @@ class OSXSystemFile(MetadataFile):
     OS/X system metadata files not relevant for audio trees.
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'OS/X System file',
-            filenames=OSX_SYSTEM_FILES
-        )
+        MetadataFile.__init__(self,path,'OS/X System file', filenames=OSX_SYSTEM_FILES )
 
 class AbletonAnalysisFile(MetadataFile):
     """
     Ableton track metadata files.
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'Ableton Live Track Metadata',
-            extensions=['asd']
-        )
+        MetadataFile.__init__(self,path,'Ableton Live Track Metadata', extensions=['asd'] )
 
 class Booklet(MetadataFile):
     """
@@ -105,19 +101,14 @@ class Booklet(MetadataFile):
     as the album. Someone else may add parser for PDF files in general if needed.
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'Album Cover Booklet',
-            filenames=BOOKLET_FILENAMES,
-            extensions=['pdf']
-        )
+        MetadataFile.__init__(self,path,'Album Cover Booklet', filenames=BOOKLET_FILENAMES, extensions=['pdf'] )
 
 class LinerNotes(MetadataFile):
     """
     Text file containing album liner notes
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'Liner Notes Textfile',
-            filenames=['linernotes.txt']
-        )
+        MetadataFile.__init__(self,path,'Liner Notes Textfile', filenames=['linernotes.txt'] )
 
 class CoverArt(MetadataFile):
     """
@@ -126,22 +117,15 @@ class CoverArt(MetadataFile):
     Static list of albumart filenames we process are defined in module sources.
     """
     def __init__(self,path=None):
-        ARTWORK_NAMES = ['%s.%s'%(name,ext) \
-            for name in ARTWORK_PREFIXES \
-            for ext in ARTWORK_FORMATS
-        ]
-        MetadataFile.__init__(self,path,'Album Artwork',
-            filenames=ARTWORK_NAMES
-        )
+        ARTWORK_NAMES = ['%s.%s'%(name,ext) for name in ARTWORK_PREFIXES for ext in ARTWORK_FORMATS ]
+        MetadataFile.__init__(self,path,'Album Artwork', filenames=ARTWORK_NAMES )
 
 class Playlist(MetadataFile):
     """
     Playlist files in various playlist formats
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'Playlist',
-            extensions=['m3u','m3u8','pls']
-        )
+        MetadataFile.__init__(self,path,'Playlist', extensions=['m3u','m3u8','pls'] )
 
 class Metadata(list):
     """

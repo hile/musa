@@ -123,18 +123,20 @@ class AACAlbumArt(TrackAlbumart):
         try:
             img_format = AAC_ALBUMART_PIL_FORMAT_MAP[self.albumart.get_fileformat()]
         except KeyError:
-            raise TagError(
-                'Unsupported albumart format %s' % self.albumart.get_fileformat()
-            )
+            raise TagError('Unsupported albumart format %s' % self.albumart.get_fileformat() )
         try:
             tag = MP4Cover(data=self.albumart.dump(),imageformat=img_format)
         except MP4MetadataValueError,emsg:
             raise TagError('Error encoding albumart: %s' % emsg)
 
         if self.track.entry.has_key(self.tag):
-            del self.track.entry[self.tag]
+            if self.track.entry[self.tag] != [tag]:
+                del self.track.entry[self.tag]
+            else:
+                return False
         self.track.entry[self.tag] = [tag]
         self.track.modified = True
+        return self.track.modified
 
 class AACIntegerTuple(TrackNumberingTag):
     """
@@ -185,6 +187,7 @@ class aac(TagParser):
         except RuntimeError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
 
+        self.supports_albumart = True
         self.albumart_obj = AACAlbumArt(self)
         self.track_numbering = AACIntegerTuple(self,'trkn')
         self.disk_numbering = AACIntegerTuple(self,'disk')
@@ -284,7 +287,7 @@ class aac(TagParser):
                 tag = getattr(self,attr)
                 tag.save_tag()
             except ValueError,emsg:
-                print 'Error processing %s: %s' % (attr,emsg)
+                self.log.debug('Error processing %s: %s' % (attr,emsg))
         try:
             TagParser.save(self)
         except MP4MetadataValueError,emsg:

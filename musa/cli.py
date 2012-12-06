@@ -14,6 +14,7 @@ from musa.prefixes import TreePrefixes
 from musa.formats import match_metadata
 from musa.tree import Tree,Track,TreeError
 
+
 def xterm_title(value,max_length=74,bypass_term_check=False):
     """
     Set title in xterm titlebar to given value, clip the title text to
@@ -55,8 +56,7 @@ class MusaTagsEditor(MusaThread):
 
         editor = os.getenv('EDITOR').split()
         if editor is None:
-            editor = ['open','-w']
-            #editor = ['vi']
+            editor = ['vi']
         cmd = editor + [self.tmpfile]
         p = Popen(cmd,stdin=sys.stdin,stdout=sys.stdout,stderr=sys.stderr)
         p.wait()
@@ -121,13 +121,19 @@ class MusaScript(object):
         If message is not None, it is printed on screen.
         """
         if message is not None:
-            print message
+            self.message(message)
         while True:
             active = filter(lambda t: t.name!='MainThread', threading.enumerate())
             if not len(active):
                 break
             time.sleep(1)
         sys.exit(value)
+
+    def message(self,message):
+        sys.stdout.write('%s\n' % message)
+
+    def error(self,message):
+        sys.stderr.write('%s\n' % message)
 
     def register_subcommand(self,command,name,help):
         if name in self.commands:
@@ -147,9 +153,7 @@ class MusaScript(object):
         """
         if not isinstance(tags,dict):
             raise MusaScriptError('Argument not a dictionary')
-        tmp = tempfile.NamedTemporaryFile(
-            dir=os.getenv('HOME'), prefix='.musa-', suffix='.txt'
-        )
+        tmp = tempfile.NamedTemporaryFile(dir=os.getenv('HOME'), prefix='.musa-', suffix='.txt')
         fd = open(tmp.name,'w')
         for k in sorted(tags.keys()):
             fd.write('%s=%s\n' % (k,tags[k]))

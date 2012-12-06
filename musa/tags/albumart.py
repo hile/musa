@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 """
 Abstraction for album art image format processing
-""" 
+"""
 
 import os,requests,logging,StringIO
 from PIL import ImageFile
+
+from musa.log import MusaLogger
 
 DEFAULT_ARTWORK_FILENAME = 'artwork.jpg'
 
@@ -20,10 +22,10 @@ PIL_MIME_MAP = {
 
 class AlbumArtError(Exception):
     """
-    Exception thrown by errors in file metadata, parameters or 
+    Exception thrown by errors in file metadata, parameters or
     file permissiosns.
     """
-    def __str__(self):  
+    def __str__(self):
         return self.args[0]
 
 class AlbumArt(object):
@@ -31,6 +33,7 @@ class AlbumArt(object):
     Class to parse albumart image files from tags and files
     """
     def __init__(self,path=None):
+        self.log =  MusaLogger('musa').default_stream
         self.__image = None
         self.__mimetype = None
         if path is not None:
@@ -74,9 +77,7 @@ class AlbumArt(object):
             self.__mimetype = PIL_MIME_MAP[self.__image.format]
         except KeyError:
             self.__image = None
-            raise AlbumArtError(
-                'Unsupported PIL image format: %s' % self.__image.format
-            )
+            raise AlbumArtError('Unsupported PIL image format: %s' % self.__image.format )
 
         if self.__image.mode != 'RGB':
             self.__image = self.__image.convert('RGB')
@@ -156,9 +157,7 @@ class AlbumArt(object):
             try:
                 os.unlink(path)
             except IOError,(ecode,emsg):
-                raise AlbumArtError(
-                    'Error removing existing file %s: %s' % (path,emsg)
-                )
+                raise AlbumArtError('Error removing existing file %s: %s' % (path,emsg) )
         try:
             self.__image.save(path,fileformat)
         except IOError,emsg:

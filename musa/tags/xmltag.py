@@ -33,19 +33,14 @@ XML_EXPORT_FIELDS = [
 
 def XMLTrackNumberField(details):
     if details.has_key('totaltracks'):
-        node = E('tracknumber',
-            track=details['tracknumber'],
-            total=details['totaltracks']
-        )
+        node = E('tracknumber', track=details['tracknumber'], total=details['totaltracks'] )
     else:
-        node = E('tracknumber',
-            track=details['tracknumber'],
-        )
+        node = E('tracknumber', track=details['tracknumber'], )
     return node
 
 def XMLTrackYear(details):
     value = parsedate(details['year'])
-    if value is None:   
+    if value is None:
         return None
     return E('year','%d'%value.tm_year)
 
@@ -55,25 +50,39 @@ XML_FIELD_CLASSES = {
 }
 
 class XMLTags(dict):
-    def __init__(self):
+    def __init__(self,data):
         dict.__init__(self)
-        self.tree = None 
+        self.tree = E('track')
+        if isinstance(data,dict):
+            self.update(data)
 
     def update(self,details):
         if not isinstance(details,dict):
             raise XMLTagError('Details must be dictionary')
-        dict.update(self,details) 
-
-    def toxml(self):
-        tree = E('track')
+        dict.update(self,details)
         for k in XML_EXPORT_FIELDS:
             if not k in self.keys():
                 continue
             if k in XML_FIELD_CLASSES.keys():
                 node = XML_FIELD_CLASSES[k](self)
                 if node is not None:
-                    tree.append(node)
+                    self.tree.append(node)
             else:
-                tree.append(E(k,self[k]))
+                self.tree.append(E(k,self[k]))
+
+    def tostring(self):
         return ET.tostring(tree,pretty_print=True)
 
+class XMLTrackTree(object):
+    def __init__(self):
+        self.tracks =  E('tracks')
+        self.tree = E('musa', self.tracks)
+
+    def append(self,xmltags):
+        if not isinstance(xmltags,XMLTags):
+            raise XMLTagError('xmltags must be XMLTags instance')
+        self.tracks.append(xmltags.tree)
+
+    def tostring(self):
+        self.tracks.set('total','%d' % len(self.tracks))
+        return ET.tostring(self.tree,pretty_print=True)

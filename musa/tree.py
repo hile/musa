@@ -1,6 +1,7 @@
 
-import os,re
+import os,re,shutil
 
+from musa.log import MusaLogger
 from musa.formats import MusaFileFormat,match_codec,match_metadata,CODECS
 from musa.prefixes import TreePrefixes,PrefixError
 from musa.tags import TagError
@@ -14,6 +15,7 @@ class TreeError(Exception):
 
 class IterableTrackFolder(object):
     def __init__(self,path,iterable):
+        self.log =  MusaLogger('musa').default_stream
         self.__next = None
         self.__iterable = iterable
         if path in ['.','']:
@@ -188,6 +190,18 @@ class Album(IterableTrackFolder):
                 shutil.copyfile(m.path,dst_path)
             except OSError,(ecode,emsg):
                 self.script.exit(1,'Error writing %s: %s' % (dst_path,emsg))
+
+        target.load()
+        albumart = target.albumart
+        if target.albumart:
+            for track in target:
+                tags = track.tags
+                if not tags.supports_albumart:
+                    self.log.debug('no albumart support: %s' % track.path)
+                    continue
+                if tags.set_albumart(albumart):
+                    self.log.debug('albumart: %s' % track)
+                    tags.save()
 
 class MetaDataFile(object):
     def __init__(self,path,metadata=None):

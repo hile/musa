@@ -9,6 +9,7 @@ from musa.formats import MusaFileFormat
 from musa.tags import TagError
 from musa.log import MusaLogger
 from musa.tags.constants import STANDARD_TAG_ORDER
+from musa.tags.xmltag import XMLTags,XMLTagError
 from musa.tags.albumart import AlbumArt,AlbumArtError
 
 __all__ = ['aac','flac','mp3','vorbis']
@@ -59,11 +60,7 @@ class TagParser(dict):
                         try:
                             value = unicode(value,'utf-8')
                         except UnicodeDecodeError,emsg:
-                            raise TagError(
-                                'Error decoding %s tag %s: %s' % (
-                                    self.path,field,emsg
-                                )
-                            )
+                            raise TagError('Error decoding %s tag %s: %s' % (self.path,field,emsg) )
                 values.append(value)
             return values
         raise KeyError('No such tag: %s' % fields)
@@ -227,6 +224,9 @@ class TagParser(dict):
     def as_dict(self):
         return dict(self.items())
 
+    def as_xml(self):
+        return XMLTags(self.as_dict())
+
     def get_unknown_tags(self):
         """
         Must be implemented in child if needed: return empty list here
@@ -283,6 +283,7 @@ class TrackAlbumart(object):
     Parent class for common albumart operations
     """
     def __init__(self,track):
+        self.log =  MusaLogger('musa').default_stream
         self.track  = track
         self.modified = False
         self.albumart = None
@@ -393,9 +394,7 @@ class Tags(object):
                 raise TagError('Unsupported audio file: %s' % path)
             tag_parser = fileformat.get_tag_parser()
             if tag_parser is None:
-                raise TagError(
-                    'No tag parser available for %s' % fileformat.path
-                )
+                raise TagError('No tag parser available for %s' % fileformat.path )
             tags_instance = tag_parser(fileformat.codec,path)
             Tags.__instances[path] = tags_instance
 
