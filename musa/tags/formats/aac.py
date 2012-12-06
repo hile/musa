@@ -134,7 +134,6 @@ class AACAlbumArt(TrackAlbumart):
         if self.track.entry.has_key(self.tag):
             del self.track.entry[self.tag]
         self.track.entry[self.tag] = [tag]
-        print 'Imported AAC albumart %s' % img_format
         self.track.modified = True
 
 class AACIntegerTuple(TrackNumberingTag):
@@ -273,6 +272,7 @@ class aac(TagParser):
                         v = unicode(v,'utf-8')
                     entries.append(v)
             self.entry[item] = entries
+
         self.modified = True
 
     def save(self):
@@ -289,3 +289,4 @@ class aac(TagParser):
             TagParser.save(self)
         except MP4MetadataValueError,emsg:
             raise TagError(emsg)
+        self.modified = False

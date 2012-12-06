@@ -7,6 +7,7 @@ import os,base64
 from musa import normalized
 from musa.formats import MusaFileFormat
 from musa.tags import TagError
+from musa.log import MusaLogger
 from musa.tags.constants import STANDARD_TAG_ORDER
 from musa.tags.albumart import AlbumArt,AlbumArtError
 
@@ -17,6 +18,7 @@ class TagParser(dict):
     Parent class for tag parser implementations
     """
     def __init__(self,codec,path,tag_map=None):
+        self.log =  MusaLogger('musa').default_stream
         dict.__init__(self)
         self.codec = codec
         self.path = normalized(os.path.realpath(path))
@@ -271,6 +273,7 @@ class TagParser(dict):
         Save tags to file.
         """
         if not self.modified:
+            self.log.debug('tags not modified')
             return
         # TODO - replace with copying of file to new inode
         self.entry.save()

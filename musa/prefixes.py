@@ -2,8 +2,12 @@
 Tree prefixes configuration
 """
 
-import os
-from musa.formats import CODECS
+import os,configobj
+from musa import MUSA_USER_DIR
+from musa.log import MusaLogger
+from musa.formats import match_codec,CODECS
+
+USER_PATH_CONFIG = os.path.join(MUSA_USER_DIR,'paths.conf')
 
 DEFAULT_PATHS = [
     '/music',
@@ -40,6 +44,10 @@ class MusicTreePrefix(object):
         else:
             return self.path
 
+    @property
+    def realpath(self):
+        return os.path.realpath(self.path)
+
     def match(self,path):
         path = path.rstrip(os.sep)
         if path[:len(self.path)] == self.path:
@@ -64,56 +72,114 @@ class MusicTreePrefix(object):
 class TreePrefixes(list):
     __instance = None
 
-    class TreePrefixInstance(list):
-        def __init__(self):
-            list.__init__(self)
-            for path in DEFAULT_PATHS:
-                for codec,defaults in CODECS.items():
-                    prefix_path=os.path.join(path,codec)
-                    self.append(MusicTreePrefix(prefix_path,defaults['extensions']))
-
-                if 'aac' in CODECS.keys():
-                    prefix_path=os.path.join(path,'m4a')
-                    self.append(MusicTreePrefix(
-                        prefix_path,
-                        CODECS['aac']['extensions']
-                    ))
-
-            self.append(MusicTreePrefix(ITUNES_MUSIC,CODECS['aac']['extensions']))
-            self.sort(lambda x,y: cmp(x.path,y.path))
-
     def __init__(self):
         if not TreePrefixes.__instance:
             TreePrefixes.__instance = TreePrefixes.TreePrefixInstance()
             self.__dict__['TreePrefixes.__instance'] = TreePrefixes.__instance
 
-    def register_prefix(self,prefix,extensions=[]):
-        if isinstance(prefix,MusicTreePrefix):
-            self.__instance.append(prefix)
-        elif isinstance(prefix,basestring):
-            self.__instance.append(MusicTreePrefix(prefix,extensions))
-        else:
-            raise PrefixError('prefix must be string or MusicTreePrefix instance')
 
-    def match_extension(self,extension,match_existing=False):
-        for prefix in self.__instance:
-            if match_existing and not os.path.isdir(prefix.path):
-                continue
-            if prefix.match_extension(extension):
-                return prefix
-        return None
+    class TreePrefixInstance(list):
+        def __init__(self):
+            list.__init__(self)
+            self.log = MusaLogger('musa').default_stream
+            for path in DEFAULT_PATHS:
+                for codec,defaults in CODECS.items():
+                    prefix_path=os.path.join(path,codec)
+                    prefix = MusicTreePrefix(prefix_path,defaults['extensions'])
+                    self.register_prefix(prefix)
 
-    def match(self,path,match_existing=False):
-        for prefix in self.__instance:
-            if match_existing and not os.path.isdir(prefix.path):
-                continue
-            if prefix.match(path):
-                return prefix
-        return None
+                if 'aac' in CODECS.keys():
+                    prefix_path=os.path.join(path,'m4a')
+                    prefix = MusicTreePrefix(prefix_path,CODECS['aac']['extensions'])
+                    self.register_prefix(prefix)
 
-    def relative_path(self,path):
-        prefix = self.match(path)
-        if not prefix:
-            return path
-        return prefix.relative_path(path)
+            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC,CODECS['aac']['extensions'])
+            self.register_prefix(itunes_prefix)
+            self.sort(lambda x,y: cmp(x.path,y.path))
+            self.load_user_config()
 
+        def load_user_config(self):
+            if not os.path.isfile(USER_PATH_CONFIG):
+                return
+
+            with open(USER_PATH_CONFIG,'r') as config:
+
+                user_codecs = {}
+                for line in config:
+                    try:
+                        if line.strip()=='' or line[:1]=='#':
+                            continue
+                        (codec_name,paths) = [x.strip() for x in line.split('=',1)]
+                        paths = [x.strip() for x in paths.split(',')]
+                    except ValueError:
+                        self.log.debug('Error parsing line: %s' % line)
+                        continue
+                    user_codecs[codec_name] = paths
+
+                for codec_name in reversed(sorted(user_codecs.keys())):
+                    paths = user_codecs[codec_name]
+                    if codec_name=='itunes':
+                        codec = match_codec('m4a')
+                    else:
+                        codec = match_codec(codec_name)
+                    if not codec:
+                        continue
+
+                    for path in reversed(paths):
+                        prefix = MusicTreePrefix(path,CODECS[codec]['extensions'])
+                        if codec_name=='itunes':
+                            self.register_prefix(prefix,prepend=False)
+                        else:
+                            self.register_prefix(prefix,prepend=True)
+
+        def index(self,prefix):
+            if not isinstance(prefix,MusicTreePrefix):
+                raise PrefixError('Prefix must be MusicTreePrefix instance')
+            for index,existing in enumerate(self):
+                if prefix.realpath == existing.realpath:
+                    return index
+            raise IndexError('Prefix is not registered')
+
+        def register_prefix(self,prefix,extensions=[],prepend=False):
+            if isinstance(prefix,basestring):
+                prefix = MusicTreePrefix(prefix,extensions)
+            if not isinstance(prefix,MusicTreePrefix):
+                raise PrefixError('prefix must be string or MusicTreePrefix instance')
+            try:
+                index = self.index(prefix)
+                if prepend and index!=0:
+                    prefix = self.pop(index)
+                    self.insert(0,prefix)
+            except IndexError:
+                if prepend:
+                    self.insert(0,prefix)
+                else:
+                    self.append(prefix)
+
+        def match_extension(self,extension,match_existing=False):
+            for prefix in self:
+                if match_existing and not os.path.isdir(prefix.path):
+                    continue
+                if prefix.match_extension(extension):
+                    return prefix
+            return None
+
+        def match(self,path,match_existing=False):
+            for prefix in self:
+                if match_existing and not os.path.isdir(prefix.path):
+                    continue
+                if prefix.match(path):
+                    return prefix
+            return None
+
+        def relative_path(self,path):
+            prefix = self.match(path)
+            if not prefix:
+                return path
+            return prefix.relative_path(path)
+
+    def __getattr__(self,attr):
+        return getattr(self.__instance,attr)
+
+    def __setattr__(self,attr,value):
+        return setattr(self.__instance,attr,value)

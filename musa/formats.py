@@ -120,6 +120,8 @@ def filter_available_command_list(commands):
 
 def match_codec(path):
     ext = os.path.splitext(path)[1][1:]
+    if ext == '':
+        ext = path
     if ext in CODECS.keys():
         return ext
     for codec,details in CODECS.items():
@@ -189,9 +191,4 @@ class MusaFileFormat(object):
         if not 'decoders' in config:
             return []
         return filter_available_command_list(config['decoders'])
-
-if __name__ == '__main__':
-    import sys
-    for f in sys.argv[1:]:
-        f=MusaFileFormat(f)
 

@@ -2,9 +2,10 @@
 Module for transcoding
 """
 
-import sys,os,shutil,time,tempfile,threading,subprocess
+import sys,os,shutil,logging,time,tempfile,threading,subprocess
 
 from musa import MUSA_USER_DIR
+from musa.log import MusaLogger
 from musa.cli import MusaThread,MusaScriptError
 from musa.tags import TagError
 from musa.tree import Tree,Album,Track,TreeError
@@ -17,8 +18,9 @@ class TranscoderThread(MusaThread):
     """
     Class to transcode one file from Transcoder queue.
     """
-    def __init__(self,src,dst,overwrite=False,dry_run=False):
-        MusaThread.__init__(self,'musa-transcoder')
+    def __init__(self,index,src,dst,overwrite=False,dry_run=False):
+        MusaThread.__init__(self,'convert')
+        self.index = index
         self.src = src
         self.dst = dst
         self.overwrite = overwrite
@@ -40,7 +42,7 @@ class TranscoderThread(MusaThread):
                 if not self.dry_run:
                     os.unlink(self.dst.path)
                 else:
-                    print 'Remove: %s' % self.dst.path
+                    self.log.debug('remove: %s' % self.dst.path)
             except OSError,(ecode,emsg):
                 raise TranscoderError(
                     'Error removing %s: %s' % (self.dst.path,emsg)
@@ -52,7 +54,7 @@ class TranscoderThread(MusaThread):
                 if not self.dry_run:
                     os.makedirs(dst_dir)
                 else:
-                    print 'Create Directory: %s' % dst_dir
+                    self.log.debug('create directory: %s' % dst_dir)
             except OSError,(ecode,emsg):
                 raise TranscoderError(
                     'Error creating directory %s: %s' % (dst_dir,emsg)
@@ -81,19 +83,18 @@ class TranscoderThread(MusaThread):
 
         try:
             if not self.dry_run:
-                self.status = 'decoding: %s' % ' '.join(decoder)
+                self.status = 'transcoding'
+                self.log.debug('decoding: %s %s' % (self.index,self.src.path))
                 self.execute(decoder)
-                self.status = 'encoding: %s' % ' '.join(encoder)
+                self.log.debug('encoding: %s %s' % (self.index,self.dst.path))
                 self.execute(encoder)
-                self.status = 'writing: %s' % (self.dst.path)
-                print 'Writing target file: %s' % self.dst.path
                 shutil.copyfile(dst.path,self.dst.path)
             else:
-                print 'Execute: %s' % ' '.join(decoder)
-                print 'Execute: %s' % ' '.join(encoder)
+                self.log.debug('decoder: %s' % ' '.join(decoder))
+                self.log.debug('encoder: %s' % ' '.join(encoder))
             del(wav)
         except TranscoderError,emsg:
-            print emsg
+            self.log.debug('ERROR transcoding: %s' % emsg)
             if wav and os.path.isfile(wav):
                 try:
                     del(wav)
@@ -105,16 +106,14 @@ class TranscoderThread(MusaThread):
         try:
             self.status = 'tagging'
             if self.src.tags is not None:
+                self.log.debug('tagging:  %s %s' % (self.index,self.dst.path))
                 if not self.dry_run:
                     if self.dst.tags is not None:
-                        self.dst.tags.update_tags(self.src.tags.as_dict())
-                        if self.dst.tags.modified:
+                        if self.dst.tags.update_tags(self.src.tags.as_dict()):
                             self.dst.tags.save()
                     else:
                         # Destination does not support tags
                         pass
-                else:
-                    print 'Copy tags to %s' % self.dst.path
         except TagError,emsg:
             raise TranscoderError(emsg)
 
@@ -122,6 +121,7 @@ class TranscoderThread(MusaThread):
 
 class MusaTranscoder(list):
     def __init__(self,threads,overwrite=False,dry_run=False):
+        self.log =  MusaLogger('convert').default_stream
         self.threads = threads
         self.overwrite = overwrite
         self.dry_run = dry_run
@@ -140,6 +140,7 @@ class MusaTranscoder(list):
             dst_encoder = dst.get_encoder_command('/tmp/test.wav')
         except TreeError,emsg:
             raise TranscoderError(emsg)
+        self.log.debug('enqueue: %s' % (src.path))
         self.append((src,dst))
 
     def run(self,dry_run=False):
@@ -151,14 +152,16 @@ class MusaTranscoder(list):
         if len(self)==0:
             return
 
+        total = len(self)
+        self.log.debug('total %d tracks to process' % total)
         while len(self)>0:
             active = threading.active_count()
             if active > self.threads:
                 time.sleep(0.5)
                 continue
+            index = '%d/%d' % (total-len(self)+1,total)
             (src,dst) = self.pop(0)
-            print '%s to %s' % (src.path,dst.path)
-            t = TranscoderThread(src,dst,self.overwrite,self.dry_run)
+            t = TranscoderThread(index,src,dst,self.overwrite,self.dry_run)
             t.start()
         active = threading.active_count()
         while active > 1:

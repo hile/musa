@@ -174,6 +174,21 @@ class Album(IterableTrackFolder):
                 return AlbumArt(m.path)
         return None
 
+    def copy_metadata(self,target):
+        if isinstance(target,basestring):
+            target = Album(target)
+        if not os.path.isdir(target.path):
+            try:
+                os.makedirs(target.path)
+            except OSError,(ecode,emsg):
+                raise TreeError('Error creating directory %s: %s' % (target.path,emsg))
+        for m in self.metadata:
+            dst_path = os.path.join(target.path,os.path.basename(m.path))
+            try:
+                shutil.copyfile(m.path,dst_path)
+            except OSError,(ecode,emsg):
+                self.script.exit(1,'Error writing %s: %s' % (dst_path,emsg))
+
 class MetaDataFile(object):
     def __init__(self,path,metadata=None):
         if metadata is None:
@@ -201,11 +216,11 @@ class Track(MusaFileFormat):
 
     @property
     def tags(self):
-        try:
-            self.file_tags = Tags(self.path,fileformat=self)
-        except TagError,emsg:
-            raise TreeError('Error loading tags: %s' % emsg)
         if not self.tags_loaded:
+            try:
+                self.file_tags = Tags(self.path,fileformat=self)
+            except TagError,emsg:
+                raise TreeError('Error loading tags: %s' % emsg)
             self.tags_loaded = True
         return self.file_tags
 
