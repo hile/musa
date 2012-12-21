@@ -107,6 +107,7 @@ class Tree(IterableTrackFolder):
         if not os.path.isdir(self.path):
             raise TreeError('Not a directory: %s' % self.path)
 
+        self.log.debug('load tree: %s' % self.path)
         IterableTrackFolder.load(self)
         self.empty_dirs.__delslice__(0,len(self.files))
         for (root,dirs,files) in os.walk(self.path,topdown=True):

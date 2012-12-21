@@ -22,10 +22,7 @@ TEST_FILE_PATHS = {
     ],
 }
 
-class TreeParserTestCase(unittest.TestCase):
-    """
-    Test parsing of trees of music files
-    """
+class tree_parsing(unittest.TestCase):
 
     def setUp(self,TEST_ROOT='test/data/tree'):
         self.root = TEST_ROOT
@@ -118,4 +115,5 @@ class TreeParserTestCase(unittest.TestCase):
         matches = t.filter_tracks(re_test,re_path=True,re_file=False)
         self.assertEquals(len(matches),expected)
 
+suite = unittest.TestLoader().loadTestsFromTestCase(tree_parsing)
 

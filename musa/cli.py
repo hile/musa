@@ -4,9 +4,7 @@ Command line utilities for musa
 """
 
 import sys,os,time,argparse,signal,socket
-import threading,tempfile
-
-from subprocess import Popen,PIPE
+import subprocess,threading,tempfile
 
 from setproctitle import setproctitle
 from musa.log import MusaLogger
@@ -44,6 +42,40 @@ class MusaThread(threading.Thread):
         self.status = 'not running'
         self.setDaemon(True)
         self.setName(name)
+
+    def execute(self,command):
+        p = subprocess.Popen(command,stdin=sys.stdin,stdout=sys.stdout,stderr=sys.stderr)
+        return p.wait()
+
+class MusaThreadManager(list):
+    def __init__(self,name,threads=1):
+        self.log =  MusaLogger(name).default_stream
+        self.threads = threads
+
+    def enqueue(self,item):
+        self.log.debug('enqueue: %s' % (src.path))
+        self.append((src,dst))
+
+    def get_entry_handler(self,entry):
+        raise NotImplementedError('Must be implemented in child class')
+
+    def run(self):
+        if len(self)==0:
+            return
+
+        total = len(self)
+        while len(self)>0:
+            active = threading.active_count()
+            if active > self.threads:
+                time.sleep(0.5)
+                continue
+            index = '%d/%d' % (total-len(self)+1,total)
+            t = self.get_entry_handler(index,self.pop(0))
+            t.start()
+        active = threading.active_count()
+        while active > 1:
+            time.sleep(0.5)
+            active = threading.active_count()
 
 class MusaTagsEditor(MusaThread):
     def __init__(self,tmpfile):
@@ -205,6 +237,9 @@ class MusaCommand(object):
         if debug:
             self.parser.add_argument('--debug',action='store_true',help='Debug messages')
 
+    def add_argument(self,*args,**kwargs):
+        self.parser.add_argument(*args,**kwargs)
+
     def get_tags(self,track):
         if isinstance(track,Track):
             try:
@@ -238,7 +273,7 @@ class MusaCommand(object):
                 tags[tag] = unicode(value)
         return tags
 
-    def parse_args(self,args):
+    def parse_args(self,args,skip_targets=False):
         """
         Common argument parsing
         """
@@ -249,6 +284,9 @@ class MusaCommand(object):
             self.logger.set_level('DEBUG')
 
         self.prefixes = TreePrefixes()
+
+        if skip_targets:
+            return [],[],[]
 
         dirs,tracks,metadata = [],[],[]
         for path in args.paths:

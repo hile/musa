@@ -8,10 +8,8 @@ ARTWORK_FORMATS = ['jpg','jpeg','png','gif']
 VALID_PLAYLIST_NAMES = ['foo.pls','foo.m3u','foo.bar.m3u8']
 INVALID_PLAYLIST_NAMES = ['.m3u','foo.mp3','foo.ogg']
 
-class MetadataTestCase(unittest.TestCase):
-    """
-    Metadata tests
-    """
+class test_metadata(unittest.TestCase):
+
     def setUp(self):
         self.metadata = metadata.Metadata()
 
@@ -59,5 +57,5 @@ class MetadataTestCase(unittest.TestCase):
             m = self.metadata.match(name)
             self.assertIsNone(m,'Invalid name matches metadata: %s' % name)
 
-suite = unittest.TestLoader().loadTestsFromTestCase(MetadataTestCase)
+suite = unittest.TestLoader().loadTestsFromTestCase(test_metadata)
 

@@ -8,10 +8,13 @@ import os,sys,shutil,argparse
 from musa.cli import MusaScript,MusaCommand,MusaScriptError
 from musa.tree import Tree,Album,Track,TreeError
 from musa.tags import TagError
-from musa.metadata import CoverArt
 from musa.tags.xmltag import XMLTrackTree,XMLTagError
-from musa.transcoder import MusaTranscoder,TranscoderError
+
+from musa.metadata import CoverArt
 from musa.tags.albumart import AlbumArt,AlbumArtError
+
+from musa.sync import SyncManager,SyncError
+from musa.transcoder import MusaTranscoder,TranscoderError
 
 class AlbumArtCommand(MusaCommand):
     def __init__(self,script):
@@ -62,6 +65,7 @@ class AlbumArtCommand(MusaCommand):
                 tags = track.tags
                 if tags is None:
                     continue
+                self.log.debug('embed: %s' % track.path)
                 tags.set_albumart(albumart)
                 tags.save()
         elif isinstance(target,Track):
@@ -73,6 +77,7 @@ class AlbumArtCommand(MusaCommand):
             tags = target.tags
             if tags is None:
                 return
+            self.log.debug('embed: %s' % target.path)
             tags.set_albumart(albumart)
             tags.save()
 
@@ -307,19 +312,29 @@ class ConvertCommand(MusaCommand):
 class SyncCommand(MusaCommand):
     def __init__(self,script):
         MusaCommand.__init__(self,script,'sync','Copy tags, files and trees')
-        self.parser.add_argument('-s','--server', help='Target server')
+        self.parser.add_argument('-t','--threads', type=int, default=4,help='Number of sync threads to use')
         self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
 
-    def parse_args(self,args):
-        trees,tracks,metadata = MusaCommand.parse_args(self,args)
+    def enqueue(self,target):
+        self.sync.enqueue(target)
 
-        track_count = sum(len(d.files) for d in trees) + len(tracks)
-        if not track_count:
-            self.script.exit(1,'No music files detected')
+    def parse_args(self,args):
+        MusaCommand.parse_args(self,args,skip_targets = None)
+
+        self.sync = SyncManager()
+
+        for arg in args.paths:
+            target = self.sync.parse_target(arg)
+            self.enqueue(target)
+
+        if len(self.sync):
+            self.sync.run()
+        else:
+            self.script.exit(1,'No sync targets found')
 
 class TagsCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','clear','delete','edit','input_file'] )
+        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','clear','delete','edit','input_fle'] )
 
         self.parser.add_argument('-s','--set',action='append', help='Set tag from value (tag=value)')
         self.parser.add_argument('-d','--delete',action='append', help='Delete tag')

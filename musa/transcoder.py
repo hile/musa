@@ -2,11 +2,11 @@
 Module for transcoding
 """
 
-import sys,os,shutil,logging,time,tempfile,threading,subprocess
+import sys,os,shutil,logging,time,tempfile,threading
 
 from musa import MUSA_USER_DIR
 from musa.log import MusaLogger
-from musa.cli import MusaThread,MusaScriptError
+from musa.cli import MusaThread,MusaThreadManager,MusaScriptError
 from musa.tags import TagError
 from musa.tree import Tree,Album,Track,TreeError
 
@@ -25,10 +25,6 @@ class TranscoderThread(MusaThread):
         self.dst = dst
         self.overwrite = overwrite
         self.dry_run = dry_run
-
-    def execute(self,command):
-        p = subprocess.Popen(command,stdin=sys.stdin,stdout=sys.stdout,stderr=sys.stderr)
-        return p.wait()
 
     def run(self):
         """
@@ -51,10 +47,12 @@ class TranscoderThread(MusaThread):
             try:
                 if not self.dry_run:
                     os.makedirs(dst_dir)
-                else:
-                    self.log.debug('create directory: %s' % dst_dir)
             except OSError,(ecode,emsg):
-                raise TranscoderError('Error creating directory %s: %s' % (dst_dir,emsg) )
+                if os.path.isdir(dst_dir):
+                    # Other thread created directory before us, forget it
+                    pass
+                else:
+                    raise TranscoderError('Error creating directory %s: %s' % (dst_dir,emsg) )
 
         wav = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.wav', )
         src_tmp = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.src.extension )
@@ -93,6 +91,10 @@ class TranscoderThread(MusaThread):
             self.status = str(e)
             return
 
+        if not os.path.isfile(self.dst.path):
+            raise TranscoderError('File was not successfully transcoded: %s' % self.dest.path)
+            return
+
         try:
             self.status = 'tagging'
             if self.src.tags is not None:
@@ -109,10 +111,9 @@ class TranscoderThread(MusaThread):
 
         self.status = 'finished'
 
-class MusaTranscoder(list):
+class MusaTranscoder(MusaThreadManager):
     def __init__(self,threads,overwrite=False,dry_run=False):
-        self.log =  MusaLogger('convert').default_stream
-        self.threads = threads
+        MusaThreadManager.__init__(self,'convert',threads)
         self.overwrite = overwrite
         self.dry_run = dry_run
 
@@ -133,28 +134,10 @@ class MusaTranscoder(list):
         self.log.debug('enqueue: %s' % (src.path))
         self.append((src,dst))
 
-    def run(self,dry_run=False):
-        """
-        Transcode enqueued songs to given target directory. The songs are
-        transcoded using as many threads as the Transcoder was configured to
-        use.
-        """
-        if len(self)==0:
-            return
+    def get_entry_handler(self,index,entry):
+        src,dst = entry
+        return TranscoderThread(index,src,dst,self.overwrite,self.dry_run)
 
-        total = len(self)
-        self.log.debug('total %d tracks to process' % total)
-        while len(self)>0:
-            active = threading.active_count()
-            if active > self.threads:
-                time.sleep(0.5)
-                continue
-            index = '%d/%d' % (total-len(self)+1,total)
-            (src,dst) = self.pop(0)
-            t = TranscoderThread(index,src,dst,self.overwrite,self.dry_run)
-            t.start()
-        active = threading.active_count()
-        while active > 1:
-            time.sleep(0.5)
-            active = threading.active_count()
-
+    def run(self):
+        self.log.debug('Transcoding %d files with %d threads' % (len(self),self.threads))
+        MusaThreadManager.run(self)
