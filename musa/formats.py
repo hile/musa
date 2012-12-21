@@ -138,9 +138,21 @@ def match_metadata(path):
         return m
     return None
 
+class path_string(unicode):
+    def __init__(self,path):
+        unicode.__init__(self,normalized(path))
+
+    @property
+    def no_ext(self):
+        return os.path.splitext(unicode(self))[0]
+
+    @property
+    def extension(self):
+        return os.path.splitext(unicode(self))[1][1:]
+
 class MusaFileFormat(object):
     def __init__(self,path):
-        self.path = normalized(path)
+        self.path = path_string(path)
         self.codec = None
         self.description = None
         self.is_metadata = False

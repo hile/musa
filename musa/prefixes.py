@@ -5,7 +5,7 @@ Tree prefixes configuration
 import os,configobj
 from musa import MUSA_USER_DIR
 from musa.log import MusaLogger
-from musa.formats import match_codec,CODECS
+from musa.formats import match_codec,path_string,CODECS
 
 USER_PATH_CONFIG = os.path.join(MUSA_USER_DIR,'paths.conf')
 
@@ -63,10 +63,10 @@ class MusicTreePrefix(object):
     def relative_path(self,path):
         path = path.rstrip(os.sep)
         if path[:len(self.path)] == self.path:
-            return path[len(self.path):].lstrip(os.sep)
+            return path_string(path[len(self.path):].lstrip(os.sep))
         realpath = os.path.realpath(path)
         if realpath[:len(self.path)] == self.path:
-            return  realpath[len(self.path):].lstrip(os.sep)
+            return  path_string(realpath[len(self.path):].lstrip(os.sep))
         raise PrefixError('Prefix does not match: %s' % path)
 
 class TreePrefixes(list):

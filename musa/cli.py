@@ -12,7 +12,6 @@ from musa.prefixes import TreePrefixes
 from musa.formats import match_metadata
 from musa.tree import Tree,Track,TreeError
 
-
 def xterm_title(value,max_length=74,bypass_term_check=False):
     """
     Set title in xterm titlebar to given value, clip the title text to
@@ -117,14 +116,15 @@ class MusaScript(object):
             prog=name,
             description=description,
             epilog=epilog,
-            add_help=False,
+            add_help=True,
             conflict_handler='resolve',
         )
 
         self.commands = {}
         self.command_parsers = self.parser.add_subparsers(
-            dest='command', help='additional help',
-            title='subcommmands', description='valid subcommands'
+            dest='command', help='Please select one command mode below',
+            title='Command modes'
+
         )
 
     def SIGINT(self,signum,frame):
@@ -167,11 +167,11 @@ class MusaScript(object):
     def error(self,message):
         sys.stderr.write('%s\n' % message)
 
-    def register_subcommand(self,command,name,help):
+    def register_subcommand(self,command,name,description,epilog=None):
         if name in self.commands:
             raise MusaScriptError('Duplicate sub command name: %s' % name)
         self.commands[name] = command
-        return self.command_parsers.add_parser(name,help=help)
+        return self.command_parsers.add_parser(name,help=description,description=description,epilog=epilog)
 
     def add_argument(self,*args,**kwargs):
         """
@@ -221,7 +221,7 @@ class MusaCommand(object):
     """
     Parent class for musa cli subcommands
     """
-    def __init__(self,script,name,helptext,mode_flags=[],debug=True):
+    def __init__(self,script,name,description,epilog=None,mode_flags=[],debug=True):
         self.name = name
         self.script = script
 
@@ -233,7 +233,7 @@ class MusaCommand(object):
         self.mode_flags = mode_flags
         self.selected_mode_flags = []
 
-        self.parser = script.register_subcommand(self,name,help=helptext)
+        self.parser = script.register_subcommand(self,name,description,epilog)
         if debug:
             self.parser.add_argument('--debug',action='store_true',help='Debug messages')
 
@@ -273,13 +273,16 @@ class MusaCommand(object):
                 tags[tag] = unicode(value)
         return tags
 
+    def message(self,*args,**kwargs):
+        self.script.message(*args,**kwargs)
+
     def parse_args(self,args,skip_targets=False):
         """
         Common argument parsing
         """
         if args.command != self.name:
             raise MusaScriptError('Called wrong sub command class')
-
+        xterm_title('musa %s' % (self.name))
         if hasattr(args,'debug') and getattr(args,'debug'):
             self.logger.set_level('DEBUG')
 
@@ -288,10 +291,10 @@ class MusaCommand(object):
         if skip_targets:
             return [],[],[]
 
-        dirs,tracks,metadata = [],[],[]
+        trees,tracks,metadata = [],[],[]
         for path in args.paths:
             if os.path.isdir(path):
-                dirs.append(Tree(path))
+                trees.append(Tree(path))
             else:
                 try:
                     tracks.append(Track(path))
@@ -301,7 +304,7 @@ class MusaCommand(object):
                         metadata.append(match)
 
         tracks_found = False
-        for d in dirs:
+        for d in trees:
             if len(d):
                 tracks_found = True
                 break
@@ -314,5 +317,5 @@ class MusaCommand(object):
             self.mode_flags
         )
 
-        return dirs,tracks,metadata
+        return trees,tracks,metadata
 

@@ -18,7 +18,11 @@ from musa.transcoder import MusaTranscoder,TranscoderError
 
 class AlbumArtCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'albumart','Manage music file album art')
+        name = 'albumart'
+        description = 'Manage music file album art'
+        mode_flags = []
+
+        MusaCommand.__init__(self,script,name,description,mode_flags)
         self.parser.add_argument('-e','--embed',action='store_true',help='Embed artwork file')
         self.parser.add_argument('-x','--extract',action='store_true',help='Extract artwork file')
         self.parser.add_argument('-i','--info',action='store_true',help='Artwork files info')
@@ -34,7 +38,7 @@ class AlbumArtCommand(MusaCommand):
                 albumart = tags.albumart
             except AlbumArtError,emsg:
                 return
-            self.script.message('%s: %s' % (coverart.path,albumart))
+            self.message('%s: %s' % (coverart.path,albumart))
 
         elif isinstance(target,Tree):
             for album in target.as_albums():
@@ -43,11 +47,11 @@ class AlbumArtCommand(MusaCommand):
                     if isinstance(m,CoverArt):
                         self.print_coverart_info(m)
                     else:
-                        self.script.message(m)
+                        self.message(m)
 
     def print_coverart_info(self,coverart):
         albumart = AlbumArt(coverart.path)
-        self.script.message('%s: %s' % (coverart.path,albumart))
+        self.message('%s: %s' % (coverart.path,albumart))
 
     def embed(self,target,albumart=None):
         if isinstance(target,Tree):
@@ -154,7 +158,16 @@ class CompareCommand(MusaCommand):
         self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
 
     def compare_trees(self,src,dst):
-        self.script.error('Tree compare not yet implemented')
+        src_track_paths = [x.relative_path.no_ext for x in src]
+        dst_track_paths = [x.relative_path.no_ext for x in dst]
+        if src_track_paths != dst_track_paths:
+            print 'Filename mismatch'
+            for s in src_tracks:
+                print type(s.relative_path),s.relative_path.no_ext
+        for track in src:
+            if track.relative_path.no_ext not in dst_track_paths:
+                print '%s: missing %s' % (dst.relative_path,track.relative_path.no_ext)
+                continue
 
     def compare_tracks(self,src,dst):
         if isinstance(src,basestring):
@@ -334,7 +347,7 @@ class SyncCommand(MusaCommand):
 
 class TagsCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','clear','delete','edit','input_fle'] )
+        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','clear','delete','edit','input_file'] )
 
         self.parser.add_argument('-s','--set',action='append', help='Set tag from value (tag=value)')
         self.parser.add_argument('-d','--delete',action='append', help='Delete tag')
@@ -359,9 +372,9 @@ class TagsCommand(MusaCommand):
             self.xmltree.append(tags.as_xml())
         else:
             if print_path:
-                self.script.message(path_format % track.path)
+                self.message(path_format % track.path)
             for k,v in tags.items():
-                self.script.message('%s %s' % (k,v))
+                self.message('%s %s' % (k,v))
 
     def edit_tags(self,track):
         track_tags = self.get_tags(track)
@@ -446,7 +459,7 @@ class TagsCommand(MusaCommand):
             )
 
             if args.xml:
-                self.script.message(self.xmltree.tostring())
+                self.message(self.xmltree.tostring())
 
 class TreeCommand(MusaCommand):
     def __init__(self,script):
@@ -457,7 +470,9 @@ class TreeCommand(MusaCommand):
 
     def list_trees(self,trees):
         for tree in trees:
-            self.me('%s: %d music files' % (tree.relative_path(),len(tree)))
+            self.message('%s: %d music files' % (tree.relative_path(),len(tree)))
+            for album in tree.as_albums():
+                print album.path
 
     def parse_args(self,args):
         trees,tracks,metadata = MusaCommand.parse_args(self,args)

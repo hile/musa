@@ -2,7 +2,7 @@
 import os,re,shutil
 
 from musa.log import MusaLogger
-from musa.formats import MusaFileFormat,match_codec,match_metadata,CODECS
+from musa.formats import MusaFileFormat,path_string,match_codec,match_metadata,CODECS
 from musa.prefixes import TreePrefixes,PrefixError
 from musa.tags import TagError
 from musa.tags.albumart import AlbumArt,AlbumArtError
@@ -20,7 +20,7 @@ class IterableTrackFolder(object):
         self.__iterable = iterable
         if path in ['.','']:
             path = os.path.realpath(path)
-        self.path = path
+        self.path = path_string(path)
         self.prefixes = TreePrefixes()
         self.invalid_paths = []
         self.has_been_iterated = False
@@ -84,6 +84,7 @@ class Tree(IterableTrackFolder):
     def __init__(self,path):
         IterableTrackFolder.__init__(self,path,'files')
         self.empty_dirs = []
+        self.relative_dirs = []
 
     def __len__(self):
         """
@@ -115,6 +116,7 @@ class Tree(IterableTrackFolder):
                 self.files.extend((root,x) for x in files)
             elif not dirs:
                 self.empty_dirs.append(root)
+        self.relative_dirs = set(self.relative_path(x[0]) for x in self.files)
         self.files.sort(lambda x,y: self.__cmp_file_path__(x,y))
 
     def filter_tracks(self,regexp=None,re_path=True,re_file=True,as_tracks=False):
@@ -139,6 +141,11 @@ class Tree(IterableTrackFolder):
         if not self.has_been_iterated:
             self.load()
         return [Album(path) for path in sorted(set(d[0] for d in self.files))]
+
+    def match(self,path):
+        relative_path = self.relative_path(path)
+        if not os.path.dirname(relative_path) in self.relative_dirs:
+            return None
 
 class Album(IterableTrackFolder):
     def __init__(self,path):
@@ -210,7 +217,7 @@ class MetaDataFile(object):
             metadata = match_metadata(path)
             if metadata is None:
                 raise TreeError('Not a metadata file: %s' % path)
-        self.path = path
+        self.path = path_string(path)
         self.extension = os.path.splitext(self.path)[1][1:].lower()
         if self.extension=='':
             self.extension = None
@@ -225,7 +232,6 @@ class Track(MusaFileFormat):
         self.prefixes = TreePrefixes()
         if self.codec is None:
             raise TreeError('Not a music file: %s' % self.path)
-
         self.tags_loaded = False
         self.file_tags = None
 
