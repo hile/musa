@@ -29,12 +29,14 @@ class MetadataFile(object):
     description     Textual description for this metadata file type
     filenames       List of full filenames to match to this type of metadata
     extensions      List of file extensions to match to this type of metadata
+    removable       Boolean to tell if this file is to be removed in cleanup
     """
-    def __init__(self,path,description,filenames=None,extensions=None):
+    def __init__(self,path,description,filenames=None,extensions=None,removable=False):
         self.path = path
         self.description = description
         self.filenames = filenames
         self.extensions = extensions
+        self.removable = removable
 
     def __repr__(self):
         """
@@ -64,10 +66,11 @@ class MetadataFile(object):
 
 class iTunesLP(MetadataFile):
     """
-    iTunes LP - directory of files
+    iTunes LP - directory of files.
+    Removed by tree cleanup.
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'iTunes LP',filenames=[])
+        MetadataFile.__init__(self,path,'iTunes LP',filenames=[],removable=True)
 
     def match(self,path):
         path = os.path.realpath(path)
@@ -82,9 +85,10 @@ class iTunesLP(MetadataFile):
 class OSXSystemFile(MetadataFile):
     """
     OS/X system metadata files not relevant for audio trees.
+    Removed by tree cleanup.
     """
     def __init__(self,path=None):
-        MetadataFile.__init__(self,path,'OS/X System file', filenames=OSX_SYSTEM_FILES )
+        MetadataFile.__init__(self,path,'OS/X System file', filenames=OSX_SYSTEM_FILES, removable=True)
 
 class AbletonAnalysisFile(MetadataFile):
     """
@@ -105,7 +109,7 @@ class Booklet(MetadataFile):
 
 class LinerNotes(MetadataFile):
     """
-    Text file containing album liner notes
+    Text file containing album liner notes.
     """
     def __init__(self,path=None):
         MetadataFile.__init__(self,path,'Liner Notes Textfile', filenames=['linernotes.txt'] )

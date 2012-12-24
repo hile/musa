@@ -4,7 +4,7 @@ Guessing of supported file formats
 """
 
 import os
-from musa import normalized,CommandPathCache
+from musa import normalized,MusaError,CommandPathCache
 from musa.metadata import Metadata
 
 #
@@ -140,15 +140,35 @@ def match_metadata(path):
 
 class path_string(unicode):
     def __init__(self,path):
-        unicode.__init__(self,normalized(path))
+        if path in ['',None]:
+            unicode.__init__(self,u'')
+        else:
+            try:
+                unicode.__init__(self,normalized(path))
+            except TypeError,emsg:
+                raise MusaError('Error normalizing path: %s (%s)' % (path,emsg))
+
+    @property
+    def exists(self):
+        if os.path.isdir(self) or os.path.isfile(self):
+            return True
+        return False
+
+    @property
+    def isdir(self):
+        return os.path.isdir(self)
+
+    @property
+    def isfile(self):
+        return os.path.isfile(self)
 
     @property
     def no_ext(self):
-        return os.path.splitext(unicode(self))[0]
+        return os.path.splitext(self)[0]
 
     @property
     def extension(self):
-        return os.path.splitext(unicode(self))[1][1:]
+        return os.path.splitext(self)[1][1:]
 
 class MusaFileFormat(object):
     def __init__(self,path):
@@ -174,6 +194,24 @@ class MusaFileFormat(object):
 
     def __repr__(self):
         return '%s %s' % (self.codec,self.path)
+
+    @property
+    def size(self):
+        if not self.path.isfile:
+            return None
+        return os.stat(self.path).st_size
+
+    @property
+    def ctime(self):
+        if not self.path.isfile:
+            return None
+        return os.stat(self.path).st_ctime
+
+    @property
+    def mtime(self):
+        if not self.path.isfile:
+            return None
+        return os.stat(self.path).st_mtime
 
     def get_tag_parser(self):
         if self.codec is None or self.codec not in TAG_PARSERS.keys():

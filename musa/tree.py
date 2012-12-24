@@ -80,6 +80,26 @@ class IterableTrackFolder(object):
         else:
             return self.prefixes.relative_path(self.path)
 
+    def remove_empty_path(self,empty):
+        """
+        Remove empty directory and all empty parent directories
+        """
+        while True:
+            if not os.path.isdir(empty):
+                # Directory does not exist
+                return
+            if os.listdir(empty):
+                # Directory is not empty
+                return
+
+            try:
+                os.rmdir(empty)
+            except OSError,(ecode,emsg):
+                raise TreeError('Error removing empty directory %s: %s' % (empty,emsg))
+
+            # Try to remove parent empty directory
+            empty = os.path.dirname(empty)
+
 class Tree(IterableTrackFolder):
     def __init__(self,path):
         IterableTrackFolder.__init__(self,path,'files')
@@ -110,7 +130,8 @@ class Tree(IterableTrackFolder):
 
         self.log.debug('load tree: %s' % self.path)
         IterableTrackFolder.load(self)
-        self.empty_dirs.__delslice__(0,len(self.files))
+        self.empty_dirs = []
+        self.relative_dirs = []
         for (root,dirs,files) in os.walk(self.path,topdown=True):
             if files:
                 self.files.extend((root,x) for x in files)

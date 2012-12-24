@@ -10,6 +10,7 @@ from musa.tree import Tree,Album,Track,TreeError
 from musa.tags import TagError
 from musa.tags.xmltag import XMLTrackTree,XMLTagError
 
+from musa.formats import match_metadata
 from musa.metadata import CoverArt
 from musa.tags.albumart import AlbumArt,AlbumArtError
 
@@ -21,7 +22,6 @@ class AlbumArtCommand(MusaCommand):
         name = 'albumart'
         description = 'Manage music file album art'
         mode_flags = []
-
         MusaCommand.__init__(self,script,name,description,mode_flags)
         self.parser.add_argument('-e','--embed',action='store_true',help='Embed artwork file')
         self.parser.add_argument('-x','--extract',action='store_true',help='Extract artwork file')
@@ -151,10 +151,53 @@ class AlbumArtCommand(MusaCommand):
             for track in tracks:
                 self.extrack(track)
 
+class CleanupCommand(MusaCommand):
+    def __init__(self,script):
+        name = 'cleanup'
+        description = 'Remove unwanted metadata files from tree'
+        mode_flags = []
+        MusaCommand.__init__(self,script,name,description,mode_flags)
+        self.parser.add_argument('-y','--dry-run',action='store_true',help='Only show files to be removed')
+        self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
+
+    def cleanup_tree(self,tree,dry_run):
+        if not isinstance(tree,Tree):
+            self.script.exit(1,'BUG: cleanup_tree argument not Tree instance')
+
+        for path in tree.invalid_paths:
+            metadata = match_metadata(path)
+            if metadata:
+                if not metadata.removable:
+                    continue
+                self.log.debug('Unwanted metadata %s: %s' % (metadata,path))
+            else:
+                self.log.debug('Unknown file type: %s' % path)
+            try:
+                os.unlink(path)
+            except OSError,(ecode,emsg):
+                self.log.message('Error removing %s: %s' % (path,emsg))
+
+        # Reload tree to get empty trees
+        self.log.debug('Reloading tree to process empty directories')
+        tree.load()
+        for empty in tree.empty_dirs:
+            tree.remove_empty_path(empty)
+
+    def parse_args(self,args):
+        trees,tracks,metadata = MusaCommand.parse_args(self,args)
+
+        if not len(trees):
+            self.script.exit(1,'Cleanup command only valid for trees')
+
+        for tree in trees:
+            self.cleanup_tree(tree,dry_run=args.dry_run)
+
 class CompareCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'compare','Compare music files')
-
+        name = 'compare'
+        description = 'Compare music files'
+        mode_flags = []
+        MusaCommand.__init__(self,script,name,description,mode_flags)
         self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
 
     def compare_trees(self,src,dst):
@@ -215,7 +258,10 @@ class CompareCommand(MusaCommand):
 
 class ConvertCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'convert','Transcode file formats')
+        name = 'convert'
+        description = 'Transcode audio file formats'
+        mode_flags = []
+        MusaCommand.__init__(self,script,name,description,mode_flags)
 
         self.parser.add_argument('-t','--threads', type=int, default=4,help='Number of transcoder threads to use')
         self.parser.add_argument('-m','--metadata', action='store_true', help='Copy album metadata')
@@ -324,30 +370,65 @@ class ConvertCommand(MusaCommand):
 
 class SyncCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'sync','Copy tags, files and trees')
+        name = 'sync'
+        description = 'Synchronize files and trees'
+        mode_flags = []
+        MusaCommand.__init__(self,script,name,description,mode_flags)
+        self.parser.add_argument('-l','--list',action='store_true', help='List configured targets')
+        self.parser.add_argument('-e','--details',action='store_true', help='Show details for targets')
+        self.parser.add_argument('-L','--list-rename-callbacks',action='store_true', help='List rename callbacks')
+        self.parser.add_argument('-d','--directories',action='store_true',help='Sync directories, not configured targets')
+        self.parser.add_argument('-r','--rename',help='Directory sync target filesystem rename callback')
+        self.parser.add_argument('-D','--delete',action='store_true',help='Remove unknown files from target')
         self.parser.add_argument('-t','--threads', type=int, default=4,help='Number of sync threads to use')
         self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
 
-    def enqueue(self,target):
-        self.sync.enqueue(target)
-
     def parse_args(self,args):
-        MusaCommand.parse_args(self,args,skip_targets = None)
+        MusaCommand.parse_args(self,args,skip_targets = True)
+        self.manager = SyncManager(threads=args.threads,delete=args.delete)
 
-        self.sync = SyncManager()
+        if args.list_rename_callbacks:
+            for name in self.manager.rename_callbacks.keys():
+                print name
+            self.script.exit(0)
 
-        for arg in args.paths:
-            target = self.sync.parse_target(arg)
-            self.enqueue(target)
+        if args.list:
+            for name,target in self.manager.config.items():
+                if args.paths and name not in args.paths:
+                    continue
+                print name
+                if args.details:
+                    print '  Type: %s' % target['type']
+                    print ' Flags: %s' % target['flags']
+                    print '  From: %s' % target['src']
+                    print '    To: %s' % target['dst']
+            self.script.exit(0)
 
-        if len(self.sync):
-            self.sync.run()
+        if args.directories:
+            if len([d for d in args.paths if os.path.isdir(d)])!=2:
+                self.script.exit(1,'Directory sync requires two existing directory paths')
+            src = Tree(args.paths[0])
+            dst = Tree(args.paths[1])
+            self.manager.enqueue({'type':'directory','src':src,'dst':dst,'rename':args.rename})
+
+        else:
+            for arg in args.paths:
+                target = self.manager.parse_target(arg)
+                if not target:
+                    self.script.exit(1,'No such target: %s' % arg)
+                self.manager.enqueue(target)
+
+        if len(self.manager):
+            self.manager.run()
         else:
             self.script.exit(1,'No sync targets found')
 
 class TagsCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'tags','Manage music file tags', mode_flags=['set','clear','delete','edit','input_file'] )
+        name = 'tags'
+        description = 'Manage music file tags'
+        mode_flags=['set','clear','delete','edit','input_file']
+        MusaCommand.__init__(self,script,name,description,mode_flags)
 
         self.parser.add_argument('-s','--set',action='append', help='Set tag from value (tag=value)')
         self.parser.add_argument('-d','--delete',action='append', help='Delete tag')
@@ -463,7 +544,10 @@ class TagsCommand(MusaCommand):
 
 class TreeCommand(MusaCommand):
     def __init__(self,script):
-        MusaCommand.__init__(self,script,'tree','Manage music trees')
+        name = 'tree'
+        description = 'Manage music file trees'
+        mode_flags = []
+        MusaCommand.__init__(self,script,name,description,mode_flags)
 
         self.parser.add_argument('-l','--list',action='store_true', help='List trees or files')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Files to process')
@@ -491,6 +575,7 @@ class TreeCommand(MusaCommand):
 
 script = MusaScript()
 AlbumArtCommand(script)
+CleanupCommand(script)
 CompareCommand(script)
 ConvertCommand(script)
 SyncCommand(script)

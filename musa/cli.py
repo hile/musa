@@ -221,7 +221,7 @@ class MusaCommand(object):
     """
     Parent class for musa cli subcommands
     """
-    def __init__(self,script,name,description,epilog=None,mode_flags=[],debug=True):
+    def __init__(self,script,name,description,mode_flags=[],epilog=None,debug=True):
         self.name = name
         self.script = script
 
