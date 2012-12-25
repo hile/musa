@@ -113,10 +113,12 @@ class FilesystemSyncThread(SyncThread):
         src = self.src_tree
         dst = self.dst_tree
 
+        i=0
         for album in src.as_albums():
             dst_album_path = os.path.join(dst.path,src.relative_path(album.path))
             if self.rename is not None:
                 dst_album_path = self.rename(dst_album_path)
+
             if not os.path.isdir(dst_album_path):
                 try:
                     self.log.debug('Create directory: %s' % dst_album_path)
@@ -124,7 +126,9 @@ class FilesystemSyncThread(SyncThread):
                 except OSError,(ecode,emsg):
                     self.log.info('Error creating directory %s: %s' % (dst_album_path,emsg))
                     continue
+
             for track in album:
+                i+=1
                 dst_track_path = os.path.join(dst.path,track.relative_path)
                 if self.rename:
                     dst_track_path = self.rename(dst_track_path)
@@ -132,10 +136,10 @@ class FilesystemSyncThread(SyncThread):
 
                 modified = False
                 if not os.path.isfile(dst_track.path):
-                    self.log.debug('New file: %s' % dst_track.path)
+                    self.log.debug('%6d new: %s' % (i,dst_track.path))
                     modified = True
                 elif track.size != dst_track.size:
-                    self.log.debug('Size differs: %s' % dst_track.path)
+                    self.log.debug('%6d modified: %s' % (i,dst_track.path))
                     modified = True
 
                 if modified:

@@ -137,7 +137,8 @@ class Tree(IterableTrackFolder):
         for (root,dirs,files) in os.walk(self.path,topdown=True):
             if files:
                 self.files.extend((root,x) for x in files)
-                self.paths.update(dict((root,x) for x in files))
+                for x in files:
+                    self.paths[os.path.join(root,x)] = True
             elif not dirs:
                 self.empty_dirs.append(root)
         self.relative_dirs = set(self.relative_path(x[0]) for x in self.files)

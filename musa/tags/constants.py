@@ -172,6 +172,20 @@ DATE_FORMATS = [
     '%Y',
 ]
 
+def sorted_tags(tags):
+    sorted_tags = []
+
+    for tag in STANDARD_TAG_ORDER:
+        if tag in tags:
+            sorted_tags.append(tag)
+
+    for tag in tags:
+        if tag in sorted(tags):
+            if tag not in sorted_tags:
+                sorted_tags.append(tag)
+
+    return sorted_tags
+
 def parsedate(value):
     tval = None
     for fmt in DATE_FORMATS:
