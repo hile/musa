@@ -17,9 +17,9 @@ def normalized(path,normalization='NFC'):
     """
     if sys.platform != 'darwin':
         return type(path)==unicode and path or unicode(path,'utf-8')
-    return unicodedata.normalize(
-        normalization, type(path)==unicode and path or unicode(path,'utf-8')
-    )
+    if not isinstance(path,unicode):
+        path = unicode(path,'utf-8')
+    return unicodedata.normalize(normalization,path)
 
 class CommandPathCache(list):
     """

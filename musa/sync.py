@@ -22,6 +22,8 @@ class SyncError(Exception):
 
 def ntfs_rename(path):
     REPLACE_MAP = {
+        '>': '-',
+        '<': '-',
         '"': '',
         ':': ' - ',
         '?': '',
@@ -137,7 +139,11 @@ class FilesystemSyncThread(SyncThread):
                     modified = True
 
                 if modified:
-                    self.copy_track(track.path,dst_track.path)
+                    try:
+                        self.copy_track(track.path,dst_track.path)
+                    except SyncError,emsg:
+                        print emsg
+                        continue
 
 class RsyncThread(SyncThread):
     def __init__(self,src,dst,flags,delete=False):

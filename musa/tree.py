@@ -103,6 +103,7 @@ class IterableTrackFolder(object):
 class Tree(IterableTrackFolder):
     def __init__(self,path):
         IterableTrackFolder.__init__(self,path,'files')
+        self.paths = {}
         self.empty_dirs = []
         self.relative_dirs = []
 
@@ -130,11 +131,13 @@ class Tree(IterableTrackFolder):
 
         self.log.debug('load tree: %s' % self.path)
         IterableTrackFolder.load(self)
+        self.paths = {}
         self.empty_dirs = []
         self.relative_dirs = []
         for (root,dirs,files) in os.walk(self.path,topdown=True):
             if files:
                 self.files.extend((root,x) for x in files)
+                self.paths.update(dict((root,x) for x in files))
             elif not dirs:
                 self.empty_dirs.append(root)
         self.relative_dirs = set(self.relative_path(x[0]) for x in self.files)
@@ -157,6 +160,11 @@ class Tree(IterableTrackFolder):
             return [Track(os.path.join(t[0],t[1])) for t in tracks]
         else:
             return tracks
+
+    def contains(self,path):
+        directory = os.path.dirname(path)
+        filename = os.path.filename(path)
+
 
     def as_albums(self):
         if not self.has_been_iterated:

@@ -140,13 +140,10 @@ def match_metadata(path):
 
 class path_string(unicode):
     def __init__(self,path):
-        if path in ['',None]:
-            unicode.__init__(self,u'')
+        if isinstance(path,unicode):
+            unicode.__init__(self,normalized(path).encode('utf-8'))
         else:
-            try:
-                unicode.__init__(self,normalized(path))
-            except TypeError,emsg:
-                raise MusaError('Error normalizing path: %s (%s)' % (path,emsg))
+            unicode.__init__(self,normalized(path))
 
     @property
     def exists(self):
