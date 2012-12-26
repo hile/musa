@@ -201,9 +201,6 @@ class TreeDB(object):
 
     def update(self,tags=True,checksum=True):
 
-        if not self.tree.has_been_iterated:
-            self.tree.load()
-
         for album in self.tree.as_albums():
             album.load()
 
