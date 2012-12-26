@@ -118,7 +118,7 @@ class TagParser(dict):
         return None
 
     def __repr__(self):
-        return '%s: %s' % (self.codec.description,self.path)
+        return '%s: %s' % (self.codec,self.path)
 
     @property
     def mtime(self):
@@ -381,45 +381,27 @@ class TrackNumberingTag(object):
         """
         raise NotImplementedError('save_tag must be implemented in child class')
 
-class Tags(object):
+def Tags(path,fileformat=None):
     """
     Loader for file metadata tags. Tag reading and writing for various
     file formats is implemented by tag formatter classes in module
     soundforest.tags.formats, initialized automatically by this class.
     """
-    __instances = {}
-    def __init__(self,path,fileformat=None):
-        if not Tags.__instances.has_key(path):
-            if not os.path.isfile(path):
-                raise TagError('No such file: %s' % path)
-            path = normalized(os.path.realpath(path))
-            if fileformat is None:
-                fileformat = MusaFileFormat(path)
-            if not isinstance(fileformat,MusaFileFormat):
-                raise TagError('File format must be MusaFileFormat instance')
-            fileformat = fileformat
-            if fileformat.is_metadata:
-                raise TagError('Attempting to load audio tags from metadata file')
-            if fileformat.codec is None:
-                raise TagError('Unsupported audio file: %s' % path)
-            tag_parser = fileformat.get_tag_parser()
-            if tag_parser is None:
-                raise TagError('No tag parser available for %s' % fileformat.path )
-            tags_instance = tag_parser(fileformat.codec,path)
-            Tags.__instances[path] = tags_instance
+    if not os.path.isfile(path):
+        raise TagError('No such file: %s' % path)
+    path = normalized(os.path.realpath(path))
 
-        self.__dict__['Tags.__instances'] = Tags.__instances
-        self.__dict__['path'] = path
+    if fileformat is None:
+        fileformat = MusaFileFormat(path)
+    if not isinstance(fileformat,MusaFileFormat):
+        raise TagError('File format must be MusaFileFormat instance')
+    fileformat = fileformat
+    if fileformat.is_metadata:
+        raise TagError('Attempting to load audio tags from metadata file')
+    if fileformat.codec is None:
+        raise TagError('Unsupported audio file: %s' % path)
 
-    def __getattr__(self,attr):
-        return getattr(self.__instances[self.path],attr)
-
-    def __setattr__(self,attr,value):
-        return setattr(self.__instances[self.path],attr,value)
-
-    def __getitem__(self,item):
-        return self.__instances[self.path].__getitem__(item)
-
-    def __setitem__(self,item,value):
-        return self.__instances[self.path].__setitem__(item,value)
-
+    tag_parser = fileformat.get_tag_parser()
+    if tag_parser is None:
+        raise TagError('No tag parser available for %s' % fileformat.path )
+    return tag_parser(fileformat.codec,path)
