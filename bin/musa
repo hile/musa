@@ -7,6 +7,7 @@ import os,sys,shutil,argparse
 
 from musa.cli import MusaScript,MusaCommand,MusaScriptError
 from musa.tree import Tree,Album,Track,TreeError
+from musa.treedb import TreeDB
 from musa.tags import TagError
 from musa.tags.xmltag import XMLTrackTree,XMLTagError
 
@@ -550,6 +551,7 @@ class TreeCommand(MusaCommand):
         MusaCommand.__init__(self,script,name,description,mode_flags)
 
         self.parser.add_argument('-l','--list',action='store_true', help='List trees or files')
+        self.parser.add_argument('-b','--db-update',action='store_true', help='Update sqlite database in tree')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Files to process')
 
     def list_trees(self,trees):
@@ -570,7 +572,16 @@ class TreeCommand(MusaCommand):
         if not trees:
             self.script.exit(1,'No directory paths detected')
 
-        if args.list:
+        if args.db_update:
+            for tree in trees:
+                tdb = TreeDB(tree)
+                self.script.message('Update DB: %s' % tree.path)
+                tdb.update()
+                summary = tdb.summary()
+                for k in sorted(summary.keys()):
+                    self.script.message('%8s %s' % (k,summary[k]))
+
+        elif args.list:
             self.list_trees(trees)
 
 script = MusaScript()

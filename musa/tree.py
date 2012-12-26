@@ -162,10 +162,13 @@ class Tree(IterableTrackFolder):
         else:
             return tracks
 
+    @property
+    def db_file(self):
+        return os.path.join(self.path,'.musa.sqlite')
+
     def contains(self,path):
         directory = os.path.dirname(path)
         filename = os.path.filename(path)
-
 
     def as_albums(self):
         if not self.has_been_iterated:
