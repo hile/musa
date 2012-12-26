@@ -1,5 +1,5 @@
 """
-Database classes to store music track information
+Database classes to store music track information in sqlite files.
 """
 
 import os,logging,hashlib
@@ -55,12 +55,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS file_tags ON tag(track,tag,value);
 ]
 
 class TreeDB(object):
+    """
+    Sqlite database of files in a music tree, stored to root directory
+    of the tree as .musa.sqlite file.
+
+    Please note the database:
+    - contains ONLY relative paths to the root of the tree
+    - does NOT contain any data not available from filesystem
+    - may be removed at any moment
+    """
 
     def __init__(self,tree):
-        """
-        Sqlite database of files in a music tree, stored to root directory
-        of the tree as .musa.sqlite file.
-        """
 
         self.log =  MusaLogger('musa').default_stream
         self.info = {'id': None, 'ctime': None, 'mtime': None }
@@ -73,6 +78,9 @@ class TreeDB(object):
         self.path = self.tree.path
 
     class DBAlbum(list):
+        """
+        Internal object to map one Album object to database tables
+        """
         def __init__(self,tree,album):
             self.log =  MusaLogger('musa').default_stream
             self.tree = tree
@@ -109,6 +117,9 @@ class TreeDB(object):
             self.tree.db.commit()
 
     class DBTrack(dict):
+        """
+        Internal object to map one Track object to database tables
+        """
         def __init__(self,tree,album,filename):
             self.log =  MusaLogger('musa').default_stream
             self.tree = tree
@@ -148,6 +159,9 @@ class TreeDB(object):
             return os.path.join(self.tree.path,self.album.path,self.filename)
 
         def update_checksum(self):
+            """
+            Update SHA1 checksum of the file to database
+            """
             shasum = hashlib.sha1()
             shasum.update(open(self.path,'r').read())
             checksum = shasum.hexdigest()
@@ -159,6 +173,9 @@ class TreeDB(object):
             return checksum
 
         def update_tags(self):
+            """
+            Update metadata tags for file to database
+            """
             tags = Track(self.path).tags
             if not tags:
                 return
@@ -200,6 +217,9 @@ class TreeDB(object):
                 self.tree.db.commit()
 
     def update(self,tags=True,checksum=True):
+        """
+        Update TreeDB sqlite database tree details
+        """
 
         for album in self.tree.as_albums():
             album.load()
@@ -229,6 +249,9 @@ class TreeDB(object):
             db_album.update_stats()
 
     def summary(self,fields=['tags','tracks','albums']):
+        """
+        Collect a summary of database contents to a dictionary.
+        """
 
         if not isinstance(fields,set):
             fields = set(fields)
