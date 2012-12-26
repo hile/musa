@@ -16,7 +16,7 @@ TREE_SQL = [
 """
 CREATE TABLE IF NOT EXISTS album (
     id          INTEGER PRIMARY KEY,
-    path        TEXT UNIQUE,
+    path        TEXT UNIQUE COLLATE NOCASE,
     atime       DATETIME,
     ctime       DATETIME,
     mtime       DATETIME,
@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS album (
 CREATE TABLE IF NOT EXISTS track (
     id          INTEGER PRIMARY KEY,
     album       INTEGER,
-    filename    TEXT,
-    extension   TEXT,
+    filename    TEXT COLLATE NOCASE,
+    extension   TEXT COLLATE NOCASE,
     size        INTEGER,
     atime       DATETIME,
     ctime       DATETIME,
@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS track (
 CREATE TABLE IF NOT EXISTS tag (
     id          INTEGER PRIMARY KEY,
     track       INTEGER,
-    tag         TEXT,
-    value       TEXT,
+    tag         TEXT COLLATE NOCASE,
+    value       TEXT COLLATE NOCASE,
     base64      BOOLEAN DEFAULT 0,
     FOREIGN KEY(track) REFERENCES track(id) ON DELETE CASCADE
 );
@@ -247,6 +247,44 @@ class TreeDB(object):
 
             # Only update album timestamps after tracks are done
             db_album.update_stats()
+
+    def match(self,values,fields=['directory','filename','tags']):
+        tracks = []
+        c = self.db.cursor
+        for value in values.split(','):
+            try:
+                tag,value = value.split('=',1)
+                c.execute(
+                    """SELECT a.path,t.filename FROM album as a, track as t, tag as x WHERE t.album=a.id AND x.track=t.id AND x.tag=? AND x.value LIKE ?""",
+                    (tag,'%%%s%%' % value,),
+                )
+                tracks.extend(os.sep.join([r[0],r[1]]) for r in c.fetchall())
+                continue
+
+            except ValueError:
+                pass
+
+            if 'filename' in fields:
+                c.execute(
+                    """SELECT a.path,t.filename FROM album as a, track as t WHERE t.album=a.id AND t.filename LIKE ?""",
+                    ('%%%s%%' % value,),
+                )
+                tracks.extend(os.sep.join([r[0],r[1]]) for r in c.fetchall())
+            if 'directory' in fields:
+                c.execute(
+                    """SELECT a.path,t.filename FROM album as a, track as t WHERE t.album=a.id AND a.path LIKE ?""",
+                    ('%%%s%%' % value,),
+                )
+                tracks.extend(os.sep.join([r[0],r[1]]) for r in c.fetchall())
+            if 'tags' in fields:
+
+                c.execute(
+                    """SELECT a.path,t.filename FROM album as a, track as t, tag as x WHERE t.album=a.id AND x.track=t.id AND x.value LIKE ?""",
+                    ('%%%s%%' % value,),
+                )
+                tracks.extend(os.sep.join([r[0],r[1]]) for r in c.fetchall())
+
+        return sorted(set(tracks))
 
     def summary(self,fields=['tags','tracks','albums']):
         """

@@ -550,7 +550,7 @@ class TreeCommand(MusaCommand):
         mode_flags = []
         MusaCommand.__init__(self,script,name,description,mode_flags)
 
-        self.parser.add_argument('-l','--list',action='store_true', help='List trees or files')
+        self.parser.add_argument('-l','--lookup', help='Lookup arguments')
         self.parser.add_argument('-b','--db-update',action='store_true', help='Update sqlite database in tree')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Files to process')
 
@@ -561,28 +561,22 @@ class TreeCommand(MusaCommand):
                 print album.path
 
     def parse_args(self,args):
-        trees,tracks,metadata = MusaCommand.parse_args(self,args)
-
-        track_count = sum(len(d.files) for d in trees) + len(tracks)
-        if not track_count:
-            self.script.exit(1,'No music files detected')
-
-        if tracks:
-            self.script.exit(1,'File arguments are not accepted for tree commands')
-        if not trees:
-            self.script.exit(1,'No directory paths detected')
+        trees,tracks,metadata = MusaCommand.parse_args(self,args,skip_targets=True)
 
         if args.db_update:
-            for tree in trees:
+            for tree in args.paths:
                 tdb = TreeDB(tree)
-                self.script.message('Update DB: %s' % tree.path)
+                self.script.message('Update DB: %s' % tree)
                 tdb.update()
                 summary = tdb.summary()
                 for k in sorted(summary.keys()):
                     self.script.message('%8s %s' % (k,summary[k]))
 
-        elif args.list:
-            self.list_trees(trees)
+        elif args.lookup:
+            for tree in args.paths:
+                tdb = TreeDB(tree)
+                for track in tdb.match(args.lookup):
+                    print track
 
 script = MusaScript()
 AlbumArtCommand(script)
