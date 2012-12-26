@@ -22,6 +22,7 @@ class SyncError(Exception):
 
 def ntfs_rename(path):
     REPLACE_MAP = {
+        '|': '-',
         '>': '-',
         '<': '-',
         '"': '',
