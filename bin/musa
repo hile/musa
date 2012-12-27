@@ -550,21 +550,32 @@ class TreeCommand(MusaCommand):
         mode_flags = []
         MusaCommand.__init__(self,script,name,description,mode_flags)
 
-        self.parser.add_argument('-l','--lookup', help='Lookup arguments')
+        self.parser.add_argument('-m','--match', help='Match files based on arguments')
+        self.parser.add_argument('-i','--info',action='store_true', help='List tags for matched files')
         self.parser.add_argument('-b','--db-update',action='store_true', help='Update sqlite database in tree')
+        self.parser.add_argument('-t','--tree', help='Tree to process')
+        self.parser.add_argument('-r','--forget-tree', help='Remove tree from configuration')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Files to process')
-
-    def list_trees(self,trees):
-        for tree in trees:
-            self.message('%s: %d music files' % (tree.relative_path(),len(tree)))
-            for album in tree.as_albums():
-                print album.path
 
     def parse_args(self,args):
         trees,tracks,metadata = MusaCommand.parse_args(self,args,skip_targets=True)
 
+        if args.tree:
+            self.script.config.add_tree(args.tree)
+            trees = [args.tree]
+        else:
+            trees = self.script.config.get_trees()
+
+        if args.forget_tree:
+            self.script.config.delete_tree(args.forget_tree)
+
         if args.db_update:
-            for tree in args.paths:
+
+            for tree in trees:
+                if not os.path.isdir(tree):
+                    self.script.config.delete_tree(tree)
+                    continue
+
                 tdb = TreeDB(tree)
                 self.script.message('Update DB: %s' % tree)
                 tdb.update()
@@ -572,11 +583,18 @@ class TreeCommand(MusaCommand):
                 for k in sorted(summary.keys()):
                     self.script.message('%8s %s' % (k,summary[k]))
 
-        elif args.lookup:
-            for tree in args.paths:
+        elif args.match:
+            for tree in trees:
                 tdb = TreeDB(tree)
-                for track in tdb.match(args.lookup):
-                    print track
+                tracks = tdb.match(args.match)
+                if len(tracks):
+                    self.log.info('### %d matches in %s ###' % (len(tracks,),tree))
+                for track in tracks:
+                    self.script.message(track)
+                    if args.info:
+                        tags = tdb.get_tags(track)
+                        for tag,value in tags.items():
+                            self.script.message('%16s %s' % (tag,value))
 
 script = MusaScript()
 AlbumArtCommand(script)

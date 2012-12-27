@@ -8,6 +8,7 @@ import subprocess,threading,tempfile
 
 from setproctitle import setproctitle
 from musa.log import MusaLogger
+from musa.config import MusaConfigDB
 from musa.prefixes import TreePrefixes
 from musa.formats import match_metadata
 from musa.tree import Tree,Track,TreeError
@@ -17,12 +18,14 @@ def xterm_title(value,max_length=74,bypass_term_check=False):
     Set title in xterm titlebar to given value, clip the title text to
     max_length characters.
     """
+    #if not os.isatty(1): return
+
     TERM=os.getenv('TERM')
     TERM_TITLE_SUPPORTED = [ 'xterm','xterm-debian']
     if not bypass_term_check and TERM not in TERM_TITLE_SUPPORTED:
         return
-    sys.stdout.write('\033]2;'+value[:max_length]+'',)
-    sys.stdout.flush()
+    sys.stderr.write('\033]2;'+value[:max_length]+'',)
+    sys.stderr.flush()
 
 class MusaScriptError(Exception):
     """
@@ -100,6 +103,7 @@ class MusaScript(object):
     """
     def __init__(self,name=None,description=None,epilog=None):
         self.name = os.path.basename(sys.argv[0])
+        self.config = MusaConfigDB()
         setproctitle('%s %s' % (self.name,' '.join(sys.argv[1:])))
         signal.signal(signal.SIGINT, self.SIGINT)
 

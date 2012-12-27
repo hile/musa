@@ -16,33 +16,33 @@ class SqliteDB(object):
     Implementation of sqlite3 database singleton instances
     """
     __instances = {}
-    def __init__(self,path,queries=[],foreign_keys=True):
+    def __init__(self,db_path,queries=[],foreign_keys=True):
         """
-        Initialize a new sqlite database to given path. You can setup the database tables
+        Initialize a new sqlite database to given db_path. You can setup the database tables
         by passing the 'queries' attribute and enforce PRAGMA foreign_keys=ON by setting
         foreign_keys to True (default)
         """
-        if not SqliteDB.__instances.has_key(path):
-            SqliteDB.__instances[path] = SqliteDB.DBInstance(path,queries,foreign_keys)
+        if not SqliteDB.__instances.has_key(db_path):
+            SqliteDB.__instances[db_path] = SqliteDB.DBInstance(db_path,queries,foreign_keys)
         self.__dict__['SqliteDB.__instances'] = SqliteDB.__instances
-        self.__dict__['path'] = path
+        self.__dict__['db_path'] = db_path
 
     class DBInstance(object):
         """
         Singleton instance for accessing given database file
         """
-        def __init__(self,path,queries,foreign_keys):
-            self.path = path
+        def __init__(self,db_path,queries,foreign_keys):
+            self.db_path = db_path
             self.log = logging.getLogger('musa')
-            if not os.path.isfile(self.path):
-                dbdir = os.path.dirname(path)
+            if not os.path.isfile(db_path):
+                dbdir = os.path.dirname(db_path)
                 if not os.path.isdir(dbdir):
                     try:
                         os.makedirs(dbdir)
                     except OSError:
                         raise SqliteDBError('Error creating database directory: %s' % dbdir)
 
-            self.conn = sqlite3.Connection(self.path)
+            self.conn = sqlite3.Connection(self.db_path)
 
             c = self.conn.cursor()
             if foreign_keys:
@@ -65,7 +65,7 @@ class SqliteDB(object):
 
     @property
     def conn(self):
-        return self.__instances[self.path].conn
+        return self.__instances[self.db_path].conn
 
     @property
     def cursor(self):

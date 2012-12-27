@@ -54,7 +54,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS file_tags ON tag(track,tag,value);
 """,
 ]
 
-class TreeDB(object):
+class TreeDB(SqliteDB):
     """
     Sqlite database of files in a music tree, stored to root directory
     of the tree as .musa.sqlite file.
@@ -66,30 +66,27 @@ class TreeDB(object):
     """
 
     def __init__(self,tree):
-
         self.log =  MusaLogger('musa').default_stream
         self.info = {'id': None, 'ctime': None, 'mtime': None }
-
         if isinstance(tree,basestring):
             tree = Tree(tree)
-
+        SqliteDB.__init__(self,tree.db_file,queries=TREE_SQL,foreign_keys=True)
         self.tree = tree
-        self.db = SqliteDB(self.tree.db_file,queries=TREE_SQL,foreign_keys=True)
         self.path = self.tree.path
 
     class DBAlbum(list):
         """
         Internal object to map one Album object to database tables
         """
-        def __init__(self,tree,album):
+        def __init__(self,treedb,album):
             self.log =  MusaLogger('musa').default_stream
-            self.tree = tree
+            self.treedb = treedb
             self.album = album
             self.path = album.relative_path()
             self.modified = False
 
             st = os.stat(self.album.path)
-            c = self.tree.db.cursor
+            c = self.treedb.cursor
             c.execute("""SELECT id,mtime FROM album WHERE path=?""",(self.path,))
             res = c.fetchone()
             if res is None:
@@ -98,37 +95,36 @@ class TreeDB(object):
                     (self.path, st.st_atime, st.st_ctime, st.st_mtime, )
                 )
                 self.modified = True
-                self.tree.db.commit()
+                self.treedb.commit()
             elif res[1]!=st.st_mtime:
                 self.modified = True
 
-
             c.execute("""SELECT id,atime,ctime,mtime FROM album WHERE path=?""",(self.path,))
-            for k,v in self.tree.db.as_dict(c,c.fetchone()).items():
+            for k,v in self.treedb.as_dict(c,c.fetchone()).items():
                 setattr(self,k,v)
 
         def update_stats(self):
-            c = self.tree.db.cursor
+            c = self.treedb.cursor
             st = os.stat(self.album.path)
             c.execute(
-                    """UPDATE album SET atime=?,ctime=?,mtime=? WHERE path=?""",
-                    (st.st_atime, st.st_ctime, st.st_mtime, self.path, )
+                """UPDATE album SET atime=?,ctime=?,mtime=? WHERE path=?""",
+                (st.st_atime, st.st_ctime, st.st_mtime, self.path, )
             )
-            self.tree.db.commit()
+            self.treedb.commit()
 
     class DBTrack(dict):
         """
         Internal object to map one Track object to database tables
         """
-        def __init__(self,tree,album,filename):
+        def __init__(self,treedb,album,filename):
             self.log =  MusaLogger('musa').default_stream
-            self.tree = tree
+            self.treedb = treedb
             self.album = album
             self.filename = filename
             self.modified = False
 
             st = os.stat(self.path)
-            c = self.tree.db.cursor
+            c = self.treedb.cursor
             c.execute(
                 """SELECT id,size,mtime FROM track WHERE album=? and filename=?""",
                 (self.album.id,self.filename,)
@@ -147,11 +143,13 @@ class TreeDB(object):
                     (st.st_size, st.st_atime, st.st_mtime, st.st_ctime, res[0], )
                 )
                 self.modified = True
-            self.tree.db.commit()
+            self.treedb.commit()
 
-            c.execute("""SELECT id,atime,ctime,mtime,checksum FROM track WHERE album=? AND filename=?""",
-                (self.album.id,self.filename,))
-            for k,v in self.tree.db.as_dict(c,c.fetchone()).items():
+            c.execute(
+                """SELECT id,atime,ctime,mtime,checksum FROM track WHERE album=? AND filename=?""",
+                (self.album.id,self.filename,)
+            )
+            for k,v in self.treedb.as_dict(c,c.fetchone()).items():
                 setattr(self,k,v)
 
         @property
@@ -179,7 +177,7 @@ class TreeDB(object):
             tags = Track(self.path).tags
             if not tags:
                 return
-            c = self.tree.db.cursor
+            c = self.treedb.cursor
 
             modified = False
             c.execute("""SELECT id,tag FROM tag WHERE track=?""", (self.id,) )
@@ -189,32 +187,22 @@ class TreeDB(object):
                     continue
                 c.execute("""DELETE FROM tag WHERE track=? AND tag=?""", (self.id,r[0],))
             if modified:
-                self.tree.db.commit()
+                self.treedb.commit()
 
             modified = False
             for tag,value in tags.items():
-                c.execute(
-                    """SELECT id,value FROM tag WHERE track=? AND tag=?""",
-                    (self.id,tag,)
-                )
+                c.execute("""SELECT id,value FROM tag WHERE track=? AND tag=?""",(self.id,tag,))
                 res = c.fetchone()
                 if res is None:
-                    c.execute(
-                        """INSERT INTO tag (track,tag,value) VALUES (?,?,?)""",
-                        ( self.id, tag, value, )
-                    )
+                    c.execute("""INSERT INTO tag (track,tag,value) VALUES (?,?,?)""",(self.id,tag,value,))
                     modified = True
+                elif res[1]==value:
+                    continue
                 else:
-                    if res[1]==value:
-                        continue
-                    c.execute(
-                        """UPDATE tag SET value=? WHERE track=? AND tag=?""",
-                        ( value, track, tag, )
-                    )
+                    c.execute("""UPDATE tag SET value=? WHERE track=? AND tag=?""",(value,track,tag,))
                     modified = True
-
             if modified:
-                self.tree.db.commit()
+                self.treedb.commit()
 
     def update(self,tags=True,checksum=True):
         """
@@ -250,7 +238,7 @@ class TreeDB(object):
 
     def match(self,values,fields=['directory','filename','tags']):
         tracks = []
-        c = self.db.cursor
+        c = self.cursor
         for value in values.split(','):
             try:
                 tag,value = value.split('=',1)
@@ -286,6 +274,18 @@ class TreeDB(object):
 
         return sorted(set(tracks))
 
+    def get_tags(self,path):
+        c = self.cursor
+        directory = os.path.dirname(path)
+        filename = os.path.basename(path)
+        c.execute(
+            """SELECT tag,value FROM tag WHERE track = (
+                 SELECT t.id FROM track as t, album as a WHERE a.id=t.album AND a.path=? AND t.filename=?
+            )""",
+            (directory,filename,)
+        )
+        return dict((r[0],r[1]) for r in c.fetchall())
+
     def summary(self,fields=['tags','tracks','albums']):
         """
         Collect a summary of database contents to a dictionary.
@@ -294,7 +294,7 @@ class TreeDB(object):
         if not isinstance(fields,set):
             fields = set(fields)
         summary = {}
-        c = self.db.cursor
+        c = self.cursor
 
         for field in fields:
             if field=='tags':
