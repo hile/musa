@@ -101,7 +101,7 @@ class MusaScript(object):
     """
     Common musa CLI tool setup class
     """
-    def __init__(self,name=None,description=None,epilog=None):
+    def __init__(self,name=None,description=None,epilog=None,debug_flag=True,subcommands=True):
         self.name = os.path.basename(sys.argv[0])
         self.config = MusaConfigDB()
         setproctitle('%s %s' % (self.name,' '.join(sys.argv[1:])))
@@ -123,13 +123,15 @@ class MusaScript(object):
             add_help=True,
             conflict_handler='resolve',
         )
+        if debug_flag:
+            self.parser.add_argument('--debug',action='store_true',help='Show debug messages')
 
-        self.commands = {}
-        self.command_parsers = self.parser.add_subparsers(
-            dest='command', help='Please select one command mode below',
-            title='Command modes'
-
-        )
+        if subcommands:
+            self.commands = {}
+            self.command_parsers = self.parser.add_subparsers(
+                dest='command', help='Please select one command mode below',
+                title='Command modes'
+            )
 
     def SIGINT(self,signum,frame):
         """

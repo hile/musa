@@ -579,9 +579,10 @@ class TreeCommand(MusaCommand):
                 tdb = TreeDB(tree)
                 self.script.message('Update DB: %s' % tree)
                 tdb.update()
-                summary = tdb.summary()
-                for k in sorted(summary.keys()):
-                    self.script.message('%8s %s' % (k,summary[k]))
+                if args.info:
+                    summary = tdb.summary()
+                    for k in sorted(summary.keys()):
+                        self.script.message('%8s %s' % (k,summary[k]))
 
         elif args.match:
             for tree in trees:
@@ -595,6 +596,15 @@ class TreeCommand(MusaCommand):
                         tags = tdb.get_tags(track)
                         for tag,value in tags.items():
                             self.script.message('%16s %s' % (tag,value))
+
+        elif args.info:
+            for tree in trees:
+                tdb = TreeDB(tree)
+                summary = tdb.summary()
+                print tree
+                for k in sorted(summary.keys()):
+                    self.script.message('%8s %s' % (k,summary[k]))
+
 
 script = MusaScript()
 AlbumArtCommand(script)
