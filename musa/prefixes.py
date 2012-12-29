@@ -4,8 +4,9 @@ Tree prefixes configuration
 
 import os,configobj
 from musa import MUSA_USER_DIR
+from musa.config import MusaConfigDB
 from musa.log import MusaLogger
-from musa.formats import match_codec,path_string,CODECS
+from musa.formats import match_codec,path_string
 
 USER_PATH_CONFIG = os.path.join(MUSA_USER_DIR,'paths.conf')
 
@@ -77,23 +78,23 @@ class TreePrefixes(list):
             TreePrefixes.__instance = TreePrefixes.TreePrefixInstance()
             self.__dict__['TreePrefixes.__instance'] = TreePrefixes.__instance
 
-
     class TreePrefixInstance(list):
         def __init__(self):
             list.__init__(self)
             self.log = MusaLogger('musa').default_stream
+            self.config = MusaConfigDB()
             for path in DEFAULT_PATHS:
-                for codec,defaults in CODECS.items():
+                for codec,defaults in self.config.codecs.items():
                     prefix_path=os.path.join(path,codec)
                     prefix = MusicTreePrefix(prefix_path,defaults['extensions'])
                     self.register_prefix(prefix)
 
-                if 'aac' in CODECS.keys():
+                if 'aac' in self.config.codecs.keys():
                     prefix_path=os.path.join(path,'m4a')
-                    prefix = MusicTreePrefix(prefix_path,CODECS['aac']['extensions'])
+                    prefix = MusicTreePrefix(prefix_path,self.config.codecs['aac']['extensions'])
                     self.register_prefix(prefix)
 
-            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC,CODECS['aac']['extensions'])
+            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC,self.config.codecs['aac']['extensions'])
             self.register_prefix(itunes_prefix)
             self.sort(lambda x,y: cmp(x.path,y.path))
             self.load_user_config()
@@ -126,7 +127,7 @@ class TreePrefixes(list):
                         continue
 
                     for path in reversed(paths):
-                        prefix = MusicTreePrefix(path,CODECS[codec]['extensions'])
+                        prefix = MusicTreePrefix(path,self.config.codecs[codec]['extensions'])
                         if codec_name=='itunes':
                             self.register_prefix(prefix,prepend=False)
                         else:

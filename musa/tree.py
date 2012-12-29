@@ -3,7 +3,8 @@ import os,re,shutil
 
 from musa import normalized
 from musa.log import MusaLogger
-from musa.formats import MusaFileFormat,path_string,match_codec,match_metadata,CODECS
+from musa.config import MusaConfigDB
+from musa.formats import MusaFileFormat,path_string,match_codec,match_metadata
 from musa.prefixes import TreePrefixes,PrefixError
 from musa.tags import TagError
 from musa.tags.albumart import AlbumArt,AlbumArtError
@@ -16,6 +17,7 @@ class TreeError(Exception):
 
 class IterableTrackFolder(object):
     def __init__(self,path,iterable):
+        self.config = MusaConfigDB()
         self.log =  MusaLogger('musa').default_stream
         self.__next = None
         self.__iterable = iterable
@@ -251,6 +253,7 @@ class Album(IterableTrackFolder):
 
 class MetaDataFile(object):
     def __init__(self,path,metadata=None):
+        self.config = MusaConfigDB()
         if metadata is None:
             metadata = match_metadata(path)
             if metadata is None:
@@ -290,6 +293,22 @@ class Track(MusaFileFormat):
     @property
     def extension(self):
         return os.path.splitext(self.path)[1][1:]
+
+    @property
+    def album(self):
+        return Album(os.path.dirname(self.path))
+
+
+    @property
+    def tracknumber_and_title(self):
+        filename = os.path.splitext(os.path.basename(self.path))[0]
+        try:
+            tracknumber,title = filename.split(None,1)
+            tracknumber = int(tracknumber)
+        except ValueError:
+            tracknumber = None
+            title = filename
+        return tracknumber,title
 
     def get_album_tracks(self):
         path = os.path.dirname(self.path)

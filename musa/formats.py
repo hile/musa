@@ -4,99 +4,10 @@ Guessing of supported file formats
 """
 
 import os
+from musa.config import MusaConfigDB
+from musa.log import MusaLogger
 from musa import normalized,MusaError,CommandPathCache
 from musa.metadata import Metadata
-
-#
-# Default codec commands and parameters
-CODECS = {
-
-  'mp3': {
-    'description': 'MPEG-1 or MPEG-2 Audio Layer III',
-    'extensions':   ['mp3'],
-    'encoders': [
-        'lame --quiet -b 320 --vbr-new -ms --replaygain-accurate FILE OUTFILE',
-    ],
-    'decoders': [
-        'lame --quiet --decode FILE OUTFILE',
-    ],
-  },
-
-  'aac': {
-    'description': 'Advanced Audio Coding',
-    'extensions': ['m4a','aac', 'mp4'],
-    'encoders': [
-        'neroAacEnc -if FILE -of OUTFILE -br 256000 -2pass',
-        'afconvert -b 256000 --soundcheck-generate -f m4af -d aac FILE OUTFILE',
-    ],
-    'decoders': [
-        'neroAacDec -if OUTFILE -of FILE',
-        'faad -q -o OUTFILE FILE -b1',
-    ],
-  },
-
-  'vorbis': {
-    'description': 'Ogg Vorbis',
-    'extensions': ['vorbis','ogg'],
-    'encoders': [
-        'oggenc --quiet -q 7 -o OUTFILE FILE',
-    ],
-    'decoders': [
-        'oggdec --quiet -o OUTFILE FILE',
-    ],
-  },
-
-  'flac': {
-    'description': 'Free Lossless Audio Codec',
-    'extensions': ['flac'],
-    'encoders': [
-        'flac -f --silent --verify --replay-gain --best -o OUTFILE FILE',
-    ],
-    'decoders': [
-        'flac -f --silent --decode -o OUTFILE FILE',
-    ],
-  },
-
-  'wavpack': {
-    'description': 'WavPack Lossless Audio Codec',
-    'extensions': ['wv','wavpack'],
-    'encoders': [ 'wavpack -yhx FILE -o OUTFILE', ],
-    'decoders': [ 'wvunpack -yq FILE -o OUTFILE', ],
-  },
-
-  'caf': {
-    'description': 'CoreAudio Format audio',
-    'extensions':   ['caf'],
-    'encoders': [
-        'afconvert -f caff -d LEI16 FILE OUTFILE',
-    ],
-    'decoders': [
-        'afconvert -f WAVE -d LEI16 FILE OUTFILE',
-    ],
-  },
-
-  'aif': {
-      'description': 'AIFF audio',
-      'extensions':   ['aif','aiff'],
-      'encoders': [
-        'afconvert -f AIFF -d BEI16 FILE OUTFILE',
-      ],
-      'decoders': [
-        'afconvert -f WAVE -d LEI16 FILE OUTFILE',
-      ],
-      },
-
-  # TODO - Raw audio, what should be decoder/encoder commands?
-  'wav': {
-      'description': 'RIFF Wave Audio',
-      'extensions':   ['wav'],
-      'encoders': [],
-      'decoders': [
-        'cp FILE OUTFILE',
-      ],
-  },
-
-}
 
 TAG_PARSERS = {
     'aac':      'musa.tags.formats.aac.aac',
@@ -107,6 +18,8 @@ TAG_PARSERS = {
 
 PATH_CACHE = CommandPathCache()
 PATH_CACHE.update()
+
+config = MusaConfigDB()
 
 def filter_available_command_list(commands):
     available = []
@@ -125,9 +38,9 @@ def match_codec(path):
     ext = os.path.splitext(path)[1][1:]
     if ext == '':
         ext = path
-    if ext in CODECS.keys():
+    if ext in config.codecs.keys():
         return ext
-    for codec,details in CODECS.items():
+    for codec,details in config.codecs.items():
         if not 'extensions' in details:
             continue
         if ext in details['extensions']:
@@ -172,6 +85,7 @@ class path_string(unicode):
 
 class MusaFileFormat(object):
     def __init__(self,path):
+        self.config = MusaConfigDB()
         self.path = path_string(path)
         self.codec = None
         self.description = None
@@ -179,9 +93,9 @@ class MusaFileFormat(object):
 
         self.codec = match_codec(path)
         if self.codec is not None:
-            if not 'description' in CODECS[self.codec]:
-                raise TypeError('CODECS missing description for %s' % self.codec)
-            self.description = CODECS[self.codec]['description'].lower()
+            if not 'description' in self.config.codecs[self.codec]:
+                raise TypeError('No description for codec %s' % self.codec)
+            self.description = self.config.codecs[self.codec]['description'].lower()
         else:
             m = match_metadata(path)
             if m:
@@ -229,7 +143,7 @@ class MusaFileFormat(object):
     def get_available_encoders(self):
         if self.codec is None:
             return []
-        config = CODECS[self.codec]
+        config = self.config.codecs[self.codec]
         if not 'encoders' in config:
             return []
         return filter_available_command_list(config['encoders'])
@@ -237,7 +151,7 @@ class MusaFileFormat(object):
     def get_available_decoders(self):
         if self.codec is None:
             return []
-        config = CODECS[self.codec]
+        config = self.config.codecs[self.codec]
         if not 'decoders' in config:
             return []
         return filter_available_command_list(config['decoders'])

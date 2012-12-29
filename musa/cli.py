@@ -10,7 +10,7 @@ from setproctitle import setproctitle
 from musa.log import MusaLogger
 from musa.config import MusaConfigDB
 from musa.prefixes import TreePrefixes
-from musa.formats import match_metadata
+from musa.formats import match_metadata,match_codec
 from musa.tree import Tree,Track,TreeError
 
 def xterm_title(value,max_length=74,bypass_term_check=False):
@@ -254,6 +254,9 @@ class MusaCommand(object):
                 pass
         return None
 
+    def get_codec(self,codec):
+        return match_codec(codec)
+
     def process_tracks(self,trees,tracks,command,**kwargs):
         """
         Execute command for all tracks in trees or track list
@@ -278,6 +281,9 @@ class MusaCommand(object):
                     raise MusaScriptError('Invalid tag input line: %s' % line)
                 tags[tag] = unicode(value)
         return tags
+
+    def exit(self,*args,**kwargs):
+        self.script.exit(*args,**kwargs)
 
     def message(self,*args,**kwargs):
         self.script.message(*args,**kwargs)

@@ -35,6 +35,7 @@ AAC_STANDARD_TAGS = {
     'year':                 ['\xa9day'],
     'bpm':                  ['tmpo'],
     'rating':               ['rati'],
+    'replaygain':           ['repl'],
     'label':                ['labe'],
     'copyright':            ['cprt'],
     'license':              ['lice'],
@@ -296,12 +297,6 @@ class aac(TagParser):
         """
         Save AAC tags to the file
         """
-        for attr in ['track_numbering','disk_numbering']:
-            try:
-                tag = getattr(self,attr)
-                tag.save_tag()
-            except ValueError,emsg:
-                self.log.debug('Error processing %s: %s' % (attr,emsg))
         try:
             TagParser.save(self)
         except MP4MetadataValueError,emsg:

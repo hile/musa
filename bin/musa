@@ -39,7 +39,7 @@ class AlbumArtCommand(MusaCommand):
                 albumart = tags.albumart
             except AlbumArtError,emsg:
                 return
-            self.message('%s: %s' % (coverart.path,albumart))
+            self.message('%s: %s' % (target.path,albumart))
 
         elif isinstance(target,Tree):
             for album in target.as_albums():
@@ -57,22 +57,29 @@ class AlbumArtCommand(MusaCommand):
     def embed(self,target,albumart=None):
         if isinstance(target,Tree):
             albums = target.as_albums()
+
             if not albums:
                 self.script.exit(1,'No albums found from path %s' % target.path)
-            if len(albums)>1:
-                self.script.exit(1,'Albumart can only embedded to single album tree targets')
+            if len(albums)>1 and albumart is not None:
+                self.script.exit(1,'Given albumart can only embedded to single album tree targets')
+
             album = albums[0]
+
             if albumart is None:
                 albumart = album.albumart
             if albumart is None:
+                self.script.exit('No albumart found from album %s' % album.path)
                 return
+
             for track in album:
                 tags = track.tags
-                if tags is None:
+                if tags is None or not tags.supports_albumart:
+                    self.log.debug('albumart not supported: %s' % track.path)
                     continue
                 self.log.debug('embed: %s' % track.path)
                 tags.set_albumart(albumart)
                 tags.save()
+
         elif isinstance(target,Track):
             if albumart is None:
                 track_album = Album(os.path.dirname(target.path))
@@ -80,7 +87,8 @@ class AlbumArtCommand(MusaCommand):
             if albumart is None:
                 return
             tags = target.tags
-            if tags is None:
+            if tags is None or not tags.supports_albumart:
+                self.log.debug('albumart not supported: %s' % target.path)
                 return
             self.log.debug('embed: %s' % target.path)
             tags.set_albumart(albumart)
@@ -257,6 +265,53 @@ class CompareCommand(MusaCommand):
         else:
             self.script.exit(1,'Requires two directory or file arguments')
 
+class ConfigCommand(MusaCommand):
+    def __init__(self,script):
+        name = 'config'
+        description = 'Configure musa settings'
+        mode_flags = []
+        MusaCommand.__init__(self,script,name,description,mode_flags)
+
+        self.parser.add_argument('-t','--threads', type=int, help='Number of threads to use')
+        self.parser.add_argument('-c','--default-codec', help='Default codec to use')
+        self.parser.add_argument('-l','--list', action='store_true', help='List configuration settings')
+        self.parser.add_argument('-o','--codecs', action='store_true', help='Manipulate codec settings')
+
+    def list_config_items(self):
+        for k,v in self.script.config.items():
+            self.message('%s=%s' % (k,v))
+
+    def parse_args(self,args):
+        MusaCommand.parse_args(self,args,skip_targets=True)
+
+        if args.default_codec:
+            if self.get_codec(args.default_codec) is None:
+                self.script.exit(1,'Error setting default codec: unknown codec %s' % args.default_codec)
+            self.script.config.set('default_codec',args.default_codec)
+
+        if args.threads:
+            self.script.config.set('threads',args.threads)
+
+        if args.list:
+            if args.codecs:
+                for name,settings in self.script.config.codecs.items():
+                    self.message('%s' % name)
+                    self.message('  Description: %s' % settings['description'])
+                    self.message('  Extensions:  %s' % ','.join(settings['extensions']))
+
+                    if settings.has_key('encoders') and settings['encoders']:
+                        self.message('  Encoders:')
+                        for encoder in settings['encoders']:
+                            print '    %s' % encoder
+
+                    if settings.has_key('decoders') and settings['decoders']:
+                        self.message('  Decoders:')
+                        for decoder in settings['decoders']:
+                            print '    %s' % decoder
+
+            else:
+                self.list_config_items()
+
 class ConvertCommand(MusaCommand):
     def __init__(self,script):
         name = 'convert'
@@ -264,7 +319,7 @@ class ConvertCommand(MusaCommand):
         mode_flags = []
         MusaCommand.__init__(self,script,name,description,mode_flags)
 
-        self.parser.add_argument('-t','--threads', type=int, default=4,help='Number of transcoder threads to use')
+        self.parser.add_argument('-t','--threads', type=int, help='Number of transcoder threads to use')
         self.parser.add_argument('-m','--metadata', action='store_true', help='Copy album metadata')
         self.parser.add_argument('-y','--dry-run', action='store_true', help='Only show which tracks would have been transcoded')
         self.parser.add_argument('-f','--overwrite', action='store_true', help='Overwrite existing target files')
@@ -344,7 +399,9 @@ class ConvertCommand(MusaCommand):
         if not track_count:
             self.script.exit(1,'No music files detected')
 
-        self.transcoder = MusaTranscoder(args.threads,args.overwrite,args.dry_run)
+        threads = args.threads is not None and args.threads or self.script.config.get('threads')
+
+        self.transcoder = MusaTranscoder(args.overwrite,args.dry_run)
         self.overwrite = args.overwrite
 
         self.metadata_paths_to_copy = {}
@@ -428,12 +485,13 @@ class TagsCommand(MusaCommand):
     def __init__(self,script):
         name = 'tags'
         description = 'Manage music file tags'
-        mode_flags=['set','clear','delete','edit','input_file']
+        mode_flags=['set','clear','delete','edit','from_path','input_file']
         MusaCommand.__init__(self,script,name,description,mode_flags)
 
         self.parser.add_argument('-s','--set',action='append', help='Set tag from value (tag=value)')
         self.parser.add_argument('-d','--delete',action='append', help='Delete tag')
         self.parser.add_argument('-C','--clear',action='store_true', help='Clear all tags')
+        self.parser.add_argument('-f','--from-path',action='store_true', help='Guess tags to set from file path')
         self.parser.add_argument('-e','--edit',action='store_true', help='Edit tags in external editor')
         self.parser.add_argument('-l','--list',action='store_true', help='List tags in given files')
         self.parser.add_argument('-p','--print-path',action='store_true', help='Print file path before tags')
@@ -489,6 +547,19 @@ class TagsCommand(MusaCommand):
         except TagError,emsg:
             self.script.exit(1, 'Error removing tags from %s: %s' % (track.path,emsg) )
 
+    def tags_from_path(self,track,tags={}):
+        parts = track.relative_path.split(os.sep)
+        if len(parts)>=3:
+            tags['album_artist'] = parts[-3]
+            tags['artist'] = parts[-3]
+            tags['album'] = parts[-2]
+            tracknumber,title = track.tracknumber_and_title
+            tags['title'] = title
+            if tracknumber is not None:
+                tags['tracknumber'] = tracknumber
+                tags['totaltracks'] = len(track.album)
+        self.update_tags(track,tags)
+
     def update_tags(self,track,tags):
         track_tags = self.get_tags(track)
         if track_tags is None:
@@ -513,12 +584,19 @@ class TagsCommand(MusaCommand):
         if args.clear:
             self.process_tracks(trees,tracks,self.clear_tags)
 
+        if args.from_path:
+            tags = {}
+            self.process_tracks(trees,tracks,self.tags_from_path,tags=tags)
+
         if args.delete:
             tags = args.delete
             self.process_tracks(trees,tracks,self.remove_tags,tags=tags)
 
         if args.set:
-            tags = dict(map(lambda v: v.split('=',1), args.set))
+            try:
+                tags = dict(map(lambda v: v.split('=',1), args.set))
+            except ValueError:
+                self.script.exit('Invalid arguments to --set flag: %s' % args.set)
             self.process_tracks(trees,tracks,self.update_tags,tags=tags)
 
         if args.input_file:
@@ -610,6 +688,7 @@ script = MusaScript()
 AlbumArtCommand(script)
 CleanupCommand(script)
 CompareCommand(script)
+ConfigCommand(script)
 ConvertCommand(script)
 SyncCommand(script)
 TagsCommand(script)

@@ -131,7 +131,9 @@ class TagParser(dict):
         return self.albumart_obj
 
     def set_albumart(self,albumart):
-        return self.albumart_obj.import_albumart(albumart)
+        if not self.supports_albumart:
+            raise TagError('Format does not support albumart')
+        return self.albumart.import_albumart(albumart)
 
     def remove_tag(self,item):
         if not self.has_key(item):
@@ -282,6 +284,12 @@ class TagParser(dict):
         """
         Save tags to file.
         """
+        for attr in ['track_numbering','disk_numbering']:
+            try:
+                tag = getattr(self,attr)
+                tag.save_tag()
+            except ValueError,emsg:
+                self.log.debug('Error processing %s: %s' % (attr,emsg))
         if not self.modified:
             self.log.debug('tags not modified')
             return
@@ -301,14 +309,13 @@ class TrackAlbumart(object):
     def __repr__(self):
         return self.albumart.__repr__()
 
-    def as_base64_tag(self):
-        """
-        Return albumart image data as base64_tag tag
-        """
+    @property
+    def info(self):
         if self.albumart is None:
-            raise TagError('Albumart is not loaded')
-        return base64_tag(base64.b64encode(self.albumart.dump()))
+            return {}
+        self.albumart.get_info()
 
+    @property
     def defined(self):
         """
         Returns True if albumart is defined, False otherwise
@@ -316,6 +323,14 @@ class TrackAlbumart(object):
         if self.albumart is None:
             return False
         return True
+
+    def as_base64_tag(self):
+        """
+        Return albumart image data as base64_tag tag
+        """
+        if self.albumart is None:
+            raise TagError('Albumart is not loaded')
+        return base64_tag(base64.b64encode(self.albumart.dump()))
 
     def import_albumart(self,albumart):
         """
@@ -336,6 +351,7 @@ class TrackNumberingTag(object):
     Fields should be set and read from attributes 'value' and 'total'
     """
     def __init__(self,track,tag):
+        self.log =  MusaLogger('musa').default_stream
         self.track = track
         self.tag = tag
         self.f_value = None
