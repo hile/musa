@@ -1,6 +1,7 @@
 
 import os,re,shutil
 
+from musa import normalized
 from musa.log import MusaLogger
 from musa.formats import MusaFileFormat,path_string,match_codec,match_metadata,CODECS
 from musa.prefixes import TreePrefixes,PrefixError
@@ -165,6 +166,10 @@ class Tree(IterableTrackFolder):
     @property
     def db_file(self):
         return os.path.join(self.path,'.musa.sqlite')
+
+    @property
+    def realpaths(self):
+        return dict((normalized(os.path.realpath(v)),True) for v in self.paths.keys() )
 
     def contains(self,path):
         directory = os.path.dirname(path)

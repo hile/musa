@@ -403,5 +403,5 @@ def Tags(path,fileformat=None):
 
     tag_parser = fileformat.get_tag_parser()
     if tag_parser is None:
-        raise TagError('No tag parser available for %s' % fileformat.path )
+        return None
     return tag_parser(fileformat.codec,path)

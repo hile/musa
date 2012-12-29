@@ -50,7 +50,7 @@ CODECS = {
     'description': 'Free Lossless Audio Codec',
     'extensions': ['flac'],
     'encoders': [
-        'flac -f --silent --verify --replay-gain QUALITY -o OUTFILE FILE',
+        'flac -f --silent --verify --replay-gain --best -o OUTFILE FILE',
     ],
     'decoders': [
         'flac -f --silent --decode -o OUTFILE FILE',
@@ -90,7 +90,10 @@ CODECS = {
   'wav': {
       'description': 'RIFF Wave Audio',
       'extensions':   ['wav'],
-      'encoders': [], 'decoders': [],
+      'encoders': [],
+      'decoders': [
+        'cp FILE OUTFILE',
+      ],
   },
 
 }
