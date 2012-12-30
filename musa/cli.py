@@ -50,9 +50,10 @@ class MusaThread(threading.Thread):
         return p.wait()
 
 class MusaThreadManager(list):
-    def __init__(self,name,threads=1):
+    def __init__(self,name,threads=None):
         self.log =  MusaLogger(name).default_stream
-        self.threads = threads
+        self.config = MusaConfigDB()
+        self.threads = threads is not None and threads or self.config.get('threads')
 
     def enqueue(self,item):
         self.log.debug('enqueue: %s' % (src.path))

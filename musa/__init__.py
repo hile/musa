@@ -3,7 +3,7 @@ __all__ = ['cli','formats','metadata','tags']
 
 import os,sys,unicodedata
 
-MUSA_USER_DIR = os.path.join(os.getenv('HOME'),'.musa')
+from musa.defaults import MUSA_USER_DIR
 
 class MusaError(Exception):
     def __str__(self):

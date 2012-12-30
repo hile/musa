@@ -435,6 +435,7 @@ class SyncCommand(MusaCommand):
         self.parser.add_argument('-l','--list',action='store_true', help='List configured targets')
         self.parser.add_argument('-e','--details',action='store_true', help='Show details for targets')
         self.parser.add_argument('-L','--list-rename-callbacks',action='store_true', help='List rename callbacks')
+        self.parser.add_argument('--list-defaults',action='store_true', help='List default targets')
         self.parser.add_argument('-d','--directories',action='store_true',help='Sync directories, not configured targets')
         self.parser.add_argument('-r','--rename',help='Directory sync target filesystem rename callback')
         self.parser.add_argument('-D','--delete',action='store_true',help='Remove unknown files from target')
@@ -450,11 +451,15 @@ class SyncCommand(MusaCommand):
                 print name
             self.script.exit(0)
 
+        if args.list_defaults:
+            for name in self.manager.config.sync.default_targets:
+                print name
+
         if args.list:
-            for name,target in self.manager.config.items():
+            for name,target in self.manager.config.sync.items():
                 if args.paths and name not in args.paths:
                     continue
-                print name
+                print name,target['defaults']
                 if args.details:
                     print '  Type: %s' % target['type']
                     print ' Flags: %s' % target['flags']
@@ -469,12 +474,15 @@ class SyncCommand(MusaCommand):
             dst = Tree(args.paths[1])
             self.manager.enqueue({'type':'directory','src':src,'dst':dst,'rename':args.rename})
 
-        else:
+        elif args.paths:
             for arg in args.paths:
                 target = self.manager.parse_target(arg)
                 if not target:
                     self.script.exit(1,'No such target: %s' % arg)
                 self.manager.enqueue(target)
+        else:
+            for target in self.manager.config.sync.default_targets:
+                self.manager.enqueue(self.manager.parse_target(target))
 
         if len(self.manager):
             self.manager.run()

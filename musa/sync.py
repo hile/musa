@@ -2,9 +2,13 @@
 Parsing of syncing options
 """
 
-import os,shutil,configobj
+import os,shutil
+
+from subprocess import Popen,PIPE
 
 from musa import MUSA_USER_DIR,MusaError
+from musa.config import MusaConfigDB
+from musa.log import MusaLogger
 from musa.cli import MusaThread,MusaThreadManager
 from musa.tree import Tree,Track,TreeError
 
@@ -40,26 +44,6 @@ def ntfs_rename(path):
 RENAME_CALLBACKS = {
     'ntfs':     ntfs_rename,
 }
-
-class SyncConfig(dict):
-    def __init__(self,path=None):
-        self.path = path is not None or USER_SYNC_CONFIG
-        self['options'] = {
-            'default': None,
-            'threads': 1,
-        }
-        config = configobj.ConfigObj(infile=self.path,interpolation=False,list_values=False)
-
-        self.update(dict(config.items()))
-
-    def keys(self):
-        return sorted(k for k in dict.keys(self) if k not in ['options'])
-
-    def items(self):
-        return [(k,self[k]) for k in self.keys()]
-
-    def values(self):
-        return [self[k] for k in self.keys()]
 
 class SyncThread(MusaThread):
     def __init__(self,index,src,dst,delete=False):
@@ -151,7 +135,7 @@ class FilesystemSyncThread(SyncThread):
                         continue
 
 class RsyncThread(SyncThread):
-    def __init__(self,src,dst,flags,delete=False):
+    def __init__(self,index,src,dst,flags,delete=False):
         SyncThread.__init__(self,index,src,dst,delete)
         if isinstance(flags,basestring):
             flags = flags.split()
@@ -166,14 +150,13 @@ class RsyncThread(SyncThread):
         p.wait()
 
 class SyncManager(MusaThreadManager):
-    def __init__(self,threads=1,delete=False):
+    def __init__(self,threads=None,delete=False):
         MusaThreadManager.__init__(self,'sync',threads)
-        self.config = SyncConfig()
         self.delete = delete
 
     def parse_target(self,name):
         try:
-            target = self.config[name]
+            target = self.config.sync[name]
         except KeyError:
             return None
         if not 'src' in target:
@@ -203,5 +186,7 @@ class SyncManager(MusaThreadManager):
             raise SyncError('Unknown sync type in config: %s' % sync_type)
         if 'delete' not in config:
             config['delete'] = self.delete
+        for k in ('id','name','defaults'):
+            config.pop(k)
         self.append(config)
 

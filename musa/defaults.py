@@ -2,6 +2,13 @@
 Default settings for musa configuration database
 """
 
+import os
+
+MUSA_USER_DIR = os.path.join(os.getenv('HOME'),'.musa')
+
+# Legacy sync configuration for import
+USER_SYNC_CONFIG = os.path.join(MUSA_USER_DIR,'sync.conf')
+
 # Default settings for empty database
 INITIAL_SETTINGS = {
     'threads':  4,
