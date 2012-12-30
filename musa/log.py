@@ -24,27 +24,28 @@ class MusaLogger(object):
         name = name is not None and name or self.__class__.__name__
 
         if not MusaLogger.__instances.has_key(name):
-            MusaLogger.__instances[name] = MusaLogger.ScriptLoggerInstance(name)
+            MusaLogger.__instances[name] = MusaLogger.MusaLoggerInstance(name)
 
         self.__dict__['_MusaLogger__instances'] = MusaLogger.__instances
         self.__dict__['name'] = name
 
-    class ScriptLoggerInstance(dict):
+    class MusaLoggerInstance(dict):
         """
         Singleton implementation of logging configuration for one program
         """
         def __init__(self,name):
-            dict.__init__(self)
             self.name = name
             self.loglevel = logging.Logger.root.level
             self.register_stream_handler('default_stream')
 
+        @property
+        def level(self):
+            return self.loglevel
+
         def __getattr__(self,attr):
-            if attr == 'level':
-                return self.loglevel
             if attr in self.keys():
                 return self[attr]
-            raise AttributeError('No such ScriptLoggerInstance attribute: %s' % attr)
+            raise AttributeError('No such MusaLoggerInstance attribute: %s' % attr)
 
         def __setattr__(self,attr,value):
             if attr in ['level','loglevel']:

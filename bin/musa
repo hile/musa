@@ -276,6 +276,8 @@ class ConfigCommand(MusaCommand):
         self.parser.add_argument('-c','--default-codec', help='Default codec to use')
         self.parser.add_argument('-l','--list', action='store_true', help='List configuration settings')
         self.parser.add_argument('-o','--codecs', action='store_true', help='Manipulate codec settings')
+        self.parser.add_argument('-s','--sync', action='store_true', help='Manipulate sync settings')
+        self.parser.add_argument('names', nargs='*', help='Sync targets to process')
 
     def list_config_items(self):
         for k,v in self.script.config.items():
@@ -289,12 +291,24 @@ class ConfigCommand(MusaCommand):
                 self.script.exit(1,'Error setting default codec: unknown codec %s' % args.default_codec)
             self.script.config.set('default_codec',args.default_codec)
 
-        if args.threads:
+        elif args.threads:
             self.script.config.set('threads',args.threads)
 
-        if args.list:
-            if args.codecs:
+        elif args.list:
+            if args.sync:
+                for name,settings in self.script.config.sync.items():
+                    if args.names and name not in args.names:
+                        continue
+                    self.message('%s' % name)
+                    self.message('  Type:        %s' % settings['type'])
+                    self.message('  Source:      %s' % settings['src'])
+                    self.message('  Destination: %s' % settings['dst'])
+                    self.message('  Flags:       %s' % settings['flags'])
+
+            elif args.codecs:
                 for name,settings in self.script.config.codecs.items():
+                    if args.names and name not in args.names:
+                        continue
                     self.message('%s' % name)
                     self.message('  Description: %s' % settings['description'])
                     self.message('  Extensions:  %s' % ','.join(settings['extensions']))
@@ -432,18 +446,14 @@ class SyncCommand(MusaCommand):
         description = 'Synchronize files and trees'
         mode_flags = []
         MusaCommand.__init__(self,script,name,description,mode_flags)
-        self.parser.add_argument('-l','--list',action='store_true', help='List configured targets')
-        self.parser.add_argument('-e','--details',action='store_true', help='Show details for targets')
-        self.parser.add_argument('-L','--list-rename-callbacks',action='store_true', help='List rename callbacks')
-        self.parser.add_argument('--list-defaults',action='store_true', help='List default targets')
         self.parser.add_argument('-d','--directories',action='store_true',help='Sync directories, not configured targets')
         self.parser.add_argument('-r','--rename',help='Directory sync target filesystem rename callback')
         self.parser.add_argument('-D','--delete',action='store_true',help='Remove unknown files from target')
-        self.parser.add_argument('-t','--threads', type=int, default=4,help='Number of sync threads to use')
+        self.parser.add_argument('-t','--threads',type=int,help='Number of sync threads to use')
         self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
 
     def parse_args(self,args):
-        MusaCommand.parse_args(self,args,skip_targets = True)
+        MusaCommand.parse_args(self,args,skip_targets=True)
         self.manager = SyncManager(threads=args.threads,delete=args.delete)
 
         if args.list_rename_callbacks:
@@ -454,18 +464,6 @@ class SyncCommand(MusaCommand):
         if args.list_defaults:
             for name in self.manager.config.sync.default_targets:
                 print name
-
-        if args.list:
-            for name,target in self.manager.config.sync.items():
-                if args.paths and name not in args.paths:
-                    continue
-                print name,target['defaults']
-                if args.details:
-                    print '  Type: %s' % target['type']
-                    print ' Flags: %s' % target['flags']
-                    print '  From: %s' % target['src']
-                    print '    To: %s' % target['dst']
-            self.script.exit(0)
 
         if args.directories:
             if len([d for d in args.paths if os.path.isdir(d)])!=2:

@@ -103,8 +103,8 @@ class MusaScript(object):
     Common musa CLI tool setup class
     """
     def __init__(self,name=None,description=None,epilog=None,debug_flag=True,subcommands=True):
-        self.name = os.path.basename(sys.argv[0])
         self.config = MusaConfigDB()
+        self.name = os.path.basename(sys.argv[0])
         setproctitle('%s %s' % (self.name,' '.join(sys.argv[1:])))
         signal.signal(signal.SIGINT, self.SIGINT)
 

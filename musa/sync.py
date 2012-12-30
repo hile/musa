@@ -148,6 +148,7 @@ class RsyncThread(SyncThread):
         self.log.debug('Running: %s' % ' '.join(command))
         p = Popen(command,stdin=PIPE,stdout=PIPE,stderr=PIPE)
         p.wait()
+        self.log.debug('Finished: %s' % ' '.join(command))
 
 class SyncManager(MusaThreadManager):
     def __init__(self,threads=None,delete=False):
