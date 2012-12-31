@@ -456,15 +456,6 @@ class SyncCommand(MusaCommand):
         MusaCommand.parse_args(self,args,skip_targets=True)
         self.manager = SyncManager(threads=args.threads,delete=args.delete)
 
-        if args.list_rename_callbacks:
-            for name in self.manager.rename_callbacks.keys():
-                print name
-            self.script.exit(0)
-
-        if args.list_defaults:
-            for name in self.manager.config.sync.default_targets:
-                print name
-
         if args.directories:
             if len([d for d in args.paths if os.path.isdir(d)])!=2:
                 self.script.exit(1,'Directory sync requires two existing directory paths')
