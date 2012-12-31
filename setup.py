@@ -18,7 +18,7 @@ setup(
     url = 'http://tuohela.net/packages/musa',
     zip_safe = False,
     install_requires = [
-        'setproctitle', 'lxml','configobj',
+        'setproctitle', 'lxml','configobj', 'requests',
         'mutagen','python-musicbrainz2', 'boto>=2.0', 'PIL',
     ],
     scripts = glob.glob('bin/*'),
