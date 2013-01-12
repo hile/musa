@@ -88,7 +88,7 @@ AAC_INTEGER_TUPLE_TYPES = [ 'trkn', 'disk' ]
 
 # Placeholder to write lambda functions to process specific tags if needed
 AAC_TAG_FORMATTERS = {
-    #'tempo':    lambda x: int(x),
+    'tmpo':    lambda x: int(x),
 }
 
 class AACAlbumArt(TrackAlbumart):
