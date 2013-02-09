@@ -6,13 +6,10 @@ import os,shutil
 
 from subprocess import Popen,PIPE
 
-from musa import MUSA_USER_DIR,MusaError
 from musa.config import MusaConfigDB
 from musa.log import MusaLogger
 from musa.cli import MusaThread,MusaThreadManager
 from musa.tree import Tree,Track,TreeError
-
-USER_SYNC_CONFIG = os.path.join(MUSA_USER_DIR,'sync.conf')
 
 RSYNC_DELETE_FLAGS = (
     '--del', '--delete', '--delete-before', '--delete-during',

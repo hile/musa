@@ -3,7 +3,7 @@ Tree prefixes configuration
 """
 
 import os,configobj
-from musa import MUSA_USER_DIR
+from musa.defaults import MUSA_USER_DIR
 from musa.config import MusaConfigDB
 from musa.log import MusaLogger
 from musa.formats import match_codec,path_string

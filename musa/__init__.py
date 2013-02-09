@@ -9,7 +9,6 @@ class MusaError(Exception):
     def __str__(self):
         return self.args[0]
 
-
 def normalized(path,normalization='NFC'):
     """
     Return given path value as normalized unicode string on OS/X,

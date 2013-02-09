@@ -2,12 +2,17 @@
 Default settings for musa configuration database
 """
 
-import os
+import sys,os
 
-MUSA_USER_DIR = os.path.join(os.getenv('HOME'),'.musa')
+if sys.platform=='darwin':
+    MUSA_USER_DIR = os.path.expanduser('~/Library/Application Support/Musa')
+    MUSA_CACHE_DIR = os.path.expanduser('~/Library/Caches/Musa')
+else:
+    MUSA_USER_DIR = os.path.expanduser('~/.config/musa')
+    MUSA_CACHE_DIR = os.path.expanduser('~/.cache/musa')
 
-# Legacy sync configuration for import
-USER_SYNC_CONFIG = os.path.join(MUSA_USER_DIR,'sync.conf')
+# Legacy sync configuration for importing to current version
+LEGACY_SYNC_CONFIG = os.path.expanduser('~/.musa/sync.conf')
 
 # Default settings for empty database
 INITIAL_SETTINGS = {

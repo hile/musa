@@ -4,7 +4,7 @@ Module for transcoding
 
 import sys,os,shutil,logging,time,tempfile,threading
 
-from musa import MUSA_USER_DIR
+from musa.defaults import MUSA_CACHE_DIR
 from musa.log import MusaLogger
 from musa.cli import MusaThread,MusaThreadManager,MusaScriptError
 from musa.tags import TagError
@@ -25,6 +25,12 @@ class TranscoderThread(MusaThread):
         self.dst = dst
         self.overwrite = overwrite
         self.dry_run = dry_run
+
+        if not os.path.isdir(MUSA_CACHE_DIR):
+            try:
+                os.makedirs(MUSA_CACHE_DIR)
+            except OSError,(ecode,emsg):
+                raise TranscoderError('Error creating directory %s: %s' % (MUSA_CACHE_DIR,emsg))
 
     def run(self):
         """
@@ -54,10 +60,10 @@ class TranscoderThread(MusaThread):
                 else:
                     raise TranscoderError('Error creating directory %s: %s' % (dst_dir,emsg) )
 
-        wav = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.wav', )
-        src_tmp = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.src.extension )
+        wav = tempfile.NamedTemporaryFile(dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.wav', )
+        src_tmp = tempfile.NamedTemporaryFile(dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.%s' % self.src.extension )
         src = Track(src_tmp.name)
-        dst_tmp = tempfile.NamedTemporaryFile(dir=MUSA_USER_DIR, prefix='musa-', suffix='.%s' % self.dst.extension )
+        dst_tmp = tempfile.NamedTemporaryFile(dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.%s' % self.dst.extension )
         src = Track(src_tmp.name)
         dst = Track(dst_tmp.name)
         if not self.dry_run:

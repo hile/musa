@@ -4,12 +4,12 @@ Musa configuration database
 
 import os,configobj
 
-from musa import MusaError
+from musa import MUSA_USER_DIR,MusaError
 from musa.log import MusaLogger
 from musa.sqlite import SqliteDB,SqliteDBError
-from musa.defaults import INITIAL_SETTINGS,DEFAULT_CODECS,USER_SYNC_CONFIG
+from musa.defaults import INITIAL_SETTINGS,DEFAULT_CODECS,LEGACY_SYNC_CONFIG
 
-DEFAULT_CONFIG_PATH = os.path.join(os.getenv('HOME'),'.musa','config.sqlite')
+DEFAULT_CONFIG_PATH = os.path.join(MUSA_USER_DIR,'config.sqlite')
 
 CONFIG_SQL = [
 """
@@ -103,7 +103,15 @@ class MusaConfigDB(object):
     class MusaConfigInstance(SqliteDB):
         def __init__(self,path):
             self.log = MusaLogger('musa').default_stream
+
             path = path is not None and path or DEFAULT_CONFIG_PATH
+            config_dir = os.path.dirname(path)
+            if not os.path.isdir(config_dir):
+                try:
+                    os.makedirs(config_dir)
+                except OSError(ecode,emsg):
+                    raise MusaError('Error creating directory: %s' % config_dir)
+
             SqliteDB.__init__(self,path,CONFIG_SQL,foreign_keys=True)
 
             for key,value in INITIAL_SETTINGS.items():
@@ -214,7 +222,7 @@ class SyncConfiguration(dict):
         self[entry['name']] = entry
 
     def import_legacy_config(self,cleanup=False):
-        path = USER_SYNC_CONFIG
+        path = LEGACY_SYNC_CONFIG
         if not os.path.isfile(path):
             return
         config = configobj.ConfigObj(infile=path,interpolation=False,list_values=False)
