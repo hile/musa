@@ -109,7 +109,7 @@ class MusaConfigDB(object):
             if not os.path.isdir(config_dir):
                 try:
                     os.makedirs(config_dir)
-                except OSError(ecode,emsg):
+                except OSError,(ecode,emsg):
                     raise MusaError('Error creating directory: %s' % config_dir)
 
             SqliteDB.__init__(self,path,CONFIG_SQL,foreign_keys=True)

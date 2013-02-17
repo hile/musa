@@ -226,7 +226,7 @@ class aac(TagParser):
         if item in ['tracknumber','totaltracks']:
             return self.track_numbering.delete_tag()
         if item in ['disknumber','totaldisks']:
-            return self.dsk_numbering.delete_tag()
+            return self.disk_numbering.delete_tag()
         return TagParser.__delitem__(self,item)
 
     def set_tag(self,item,value):
