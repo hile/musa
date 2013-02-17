@@ -213,12 +213,12 @@ class CompareCommand(MusaCommand):
         src_track_paths = [x.relative_path.no_ext for x in src]
         dst_track_paths = [x.relative_path.no_ext for x in dst]
         if src_track_paths != dst_track_paths:
-            print 'Filename mismatch'
+            script.message('Filename mismatch')
             for s in src_tracks:
-                print type(s.relative_path),s.relative_path.no_ext
+                script.message(type(s.relative_path),s.relative_path.no_ext)
         for track in src:
             if track.relative_path.no_ext not in dst_track_paths:
-                print '%s: missing %s' % (dst.relative_path,track.relative_path.no_ext)
+                script.message('%s: missing %s' % (dst.relative_path,track.relative_path.no_ext))
                 continue
 
     def compare_tracks(self,src,dst):
@@ -316,12 +316,12 @@ class ConfigCommand(MusaCommand):
                     if settings.has_key('encoders') and settings['encoders']:
                         self.message('  Encoders:')
                         for encoder in settings['encoders']:
-                            print '    %s' % encoder
+                            script.message('    %s' % encoder)
 
                     if settings.has_key('decoders') and settings['decoders']:
                         self.message('  Decoders:')
                         for decoder in settings['decoders']:
-                            print '    %s' % decoder
+                            script.message('    %s' % decoder)
 
             else:
                 self.list_config_items()
@@ -354,6 +354,7 @@ class ConvertCommand(MusaCommand):
             self.metadata_paths_to_copy[src_album.path] = (src_album,dst_album)
 
         if os.path.isfile(dst.path) and not self.overwrite:
+            self.log.debug('File exists: %s' % dst.path)
             return
 
         try:
@@ -582,8 +583,7 @@ class TagsCommand(MusaCommand):
             self.process_tracks(trees,tracks,self.clear_tags)
 
         if args.from_path:
-            tags = {}
-            self.process_tracks(trees,tracks,self.tags_from_path,tags=tags)
+            self.process_tracks(trees,tracks,self.tags_from_path)
 
         if args.delete:
             tags = args.delete
@@ -602,7 +602,6 @@ class TagsCommand(MusaCommand):
             except MusaScriptError,emsg:
                 self.script.exit(1,str(emsg).strip())
             self.process_tracks(trees,tracks,self.update_tags,tags=tags)
-
 
         if args.edit:
             self.process_tracks(trees,tracks,self.edit_tags)
@@ -676,7 +675,7 @@ class TreeCommand(MusaCommand):
             for tree in trees:
                 tdb = TreeDB(tree)
                 summary = tdb.summary()
-                print tree
+                script.message(tree)
                 for k in sorted(summary.keys()):
                     self.script.message('%8s %s' % (k,summary[k]))
 

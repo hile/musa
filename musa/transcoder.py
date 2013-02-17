@@ -126,6 +126,7 @@ class MusaTranscoder(MusaThreadManager):
     def enqueue(self,src,dst):
         if not isinstance(src,Track) or not isinstance(dst,Track):
             raise TranscoderError('Trancode arguments must be track object')
+
         if not os.path.isfile(src.path):
             raise TranscoderError('No such file: %s' % src.path)
 
@@ -133,10 +134,12 @@ class MusaTranscoder(MusaThreadManager):
             src_decoder = src.get_decoder_command('/tmp/test.wav')
         except TreeError,emsg:
             raise TranscoderError(str(emsg))
+
         try:
             dst_encoder = dst.get_encoder_command('/tmp/test.wav')
         except TreeError,emsg:
             raise TranscoderError(str(emsg))
+
         self.log.debug('enqueue: %s' % (src.path))
         self.append((src,dst))
 

@@ -288,7 +288,7 @@ class Track(MusaFileFormat):
 
     @property
     def relative_path(self):
-        return self.prefixes.relative_path(self.path)
+        return self.prefixes.relative_path(os.path.realpath(self.path))
 
     @property
     def extension(self):

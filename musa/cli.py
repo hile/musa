@@ -93,7 +93,7 @@ class MusaTagsEditor(MusaThread):
         if editor is None:
             editor = ['vi']
         cmd = editor + [self.tmpfile]
-        p = Popen(cmd,stdin=sys.stdin,stdout=sys.stdout,stderr=sys.stderr)
+        p = subprocess.Popen(cmd,stdin=sys.stdin,stdout=sys.stdout,stderr=sys.stderr)
         p.wait()
         self.status = 'finished'
         return
@@ -262,9 +262,12 @@ class MusaCommand(object):
         """
         Execute command for all tracks in trees or track list
         """
+        self.log.debug('Processing %s trees and %s tracks' % (len(trees),len(tracks)))
+
         for tree in trees:
             for track in tree:
                 command(track=track,**kwargs)
+
         for track in tracks:
             command(track=track,**kwargs)
 

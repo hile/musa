@@ -205,10 +205,13 @@ class mp3(TagParser):
                             value = value[0]
                         matched = True
                         break
+
                 if value is None:
-                    raise TagError('Error parsing %s: %s' % (tag,dir(value)))
+                    continue
+
                 if not matched:
                     raise TagError('Error parsing %s: %s' % (tag,dir(value)))
+
                 if not isinstance(value,unicode):
                     try:
                         value = '%d' % int(str(value))
