@@ -360,8 +360,10 @@ class TrackNumberingTag(object):
     def __repr__(self):
         if self.total is not None:
             return '%d/%d' % (self.value,self.total)
-        else:
+        elif self.value is not None:
             return '%d' % (self.value)
+        else:
+            return None
 
     def __getattr__(self,attr):
         if attr == 'value':

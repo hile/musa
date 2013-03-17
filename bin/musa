@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Music tagging command
+Music tagging and management tool
 """
 
 import os,sys,shutil,argparse
@@ -13,6 +13,7 @@ from musa.tags.xmltag import XMLTrackTree,XMLTagError
 
 from musa.formats import match_metadata
 from musa.metadata import CoverArt
+from musa.playlist import m3uPlaylist,m3uPlaylistDirectory,PlaylistError
 from musa.tags.albumart import AlbumArt,AlbumArtError
 
 from musa.sync import SyncManager,SyncError
@@ -441,6 +442,27 @@ class ConvertCommand(MusaCommand):
         if args.metadata:
             self.copy_metadata(args.dry_run)
 
+class PlaylistCommand(MusaCommand):
+    def __init__(self,script):
+        name = 'playlist'
+        description = 'Manipulate playlists'
+        mode_flags = []
+        PLAYLIST_DIRECTORY = os.path.expanduser('~/Music/Playlists')
+        MusaCommand.__init__(self,script,name,description,mode_flags)
+        self.parser.add_argument('-l','--list',action='store_true',help='List playlist songs')
+        self.parser.add_argument('-d','--directory',default=PLAYLIST_DIRECTORY,help='Playlist directory to process')
+
+    def parse_args(self,args):
+        MusaCommand.parse_args(self,args,skip_targets=True)
+        playlists = m3uPlaylistDirectory(args.directory)
+
+        if args.list:
+            script.log.debug('Playlist folder: %s' % playlists.path)
+            for playlist in playlists:
+                print playlist
+                for path in playlist:
+                    print path
+
 class SyncCommand(MusaCommand):
     def __init__(self,script):
         name = 'sync'
@@ -686,6 +708,7 @@ CleanupCommand(script)
 CompareCommand(script)
 ConfigCommand(script)
 ConvertCommand(script)
+PlaylistCommand(script)
 SyncCommand(script)
 TagsCommand(script)
 TreeCommand(script)

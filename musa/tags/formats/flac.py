@@ -114,8 +114,9 @@ class FLACNumberingTag(TrackNumberingTag):
         Set new numbering information to vorbis tags, marking file
         dirty to require saving but not saving tags.
         """
-        if self.value is not None:
-            self.track.entry[self.tag] = '%s' % self.__repr__()
+        value = self.__repr__()
+        if value is not None:
+            self.track.entry[self.tag] = '%s' % value
             self.track.modified = True
 
 class flac(TagParser):
