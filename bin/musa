@@ -27,6 +27,7 @@ class AlbumArtCommand(MusaCommand):
         MusaCommand.__init__(self,script,name,description,mode_flags)
         self.parser.add_argument('-e','--embed',action='store_true',help='Embed artwork file')
         self.parser.add_argument('-x','--extract',action='store_true',help='Extract artwork file')
+        self.parser.add_argument('-X','--extract-missing',action='store_true',help='Extract missing artwork file')
         self.parser.add_argument('-i','--info',action='store_true',help='Artwork files info')
         self.parser.add_argument('-u','--url',help='Fetch artwork from given url')
         self.parser.add_argument('paths', metavar='path', nargs='*',help='Paths to process')
@@ -95,7 +96,7 @@ class AlbumArtCommand(MusaCommand):
             tags.set_albumart(albumart)
             tags.save()
 
-    def extract(self,target):
+    def extract(self,target,overwrite=True):
         if isinstance(target,Tree):
             albums = target.as_albums()
             if not albums:
@@ -109,9 +110,18 @@ class AlbumArtCommand(MusaCommand):
                 if not tags.albumart:
                     self.script.error('No album art in %s' % track.path)
                     continue
+
                 albumart_path = os.path.join(os.path.dirname(track.path),'artwork.jpg')
-                self.log.debug('Saving %s: %s' % (albumart_path,tags.albumart))
-                #tags.albumart.save(albumart_path)
+                
+                if not overwrite and os.path.isfile(albumart_path):
+                    self.log.debug('Skip existing: %s' % albumart_path)
+                else:
+                    try:
+                        tags.albumart.save(albumart_path)
+                        self.log.debug('Saving %s: %s' % (albumart_path,tags.albumart))
+                    except TagError,emsg:
+                        self.log.debug('Error saving %s: %s' % (albumart_path,emsg))
+
         elif isinstance(target,Track):
             tags = target.tags
             if tags is None:
@@ -120,9 +130,17 @@ class AlbumArtCommand(MusaCommand):
             if not tags.albumart:
                 self.script.error('No album art in %s' % target.path)
                 return
+
             albumart_path = os.path.join(os.path.dirname(target.path),'artwork.jpg')
-            self.log.debug('saving %s: %s' % (albumart_path,tags.albumart))
-            tags.albumart.save(albumart_path)
+
+            if not overwrite and os.path.isfile(albumart_path):
+                self.log.debug('Skip existing: %s' % albumart_path)
+            else:
+                try:
+                    tags.albumart.save(albumart_path)
+                    self.log.debug('Saving %s: %s' % (albumart_path,tags.albumart))
+                except TagError,emsg:
+                    self.log.debug('Error saving %s: %s' % (albumart_path,emsg))
 
     def parse_args(self,args):
         trees,tracks,metadata = MusaCommand.parse_args(self,args)
@@ -155,11 +173,13 @@ class AlbumArtCommand(MusaCommand):
                 self.embed(tree,albumart)
             for track in tracks:
                 self.embed(track,albumart)
-        if args.extract:
+        
+        if args.extract or args.extract_missing:
+            overwrite = args.extract_missing==False
             for tree in trees:
-                self.extract(tree)
+                self.extract(tree,overwrite=overwrite)
             for track in tracks:
-                self.extrack(track)
+                self.extract(track,overwrite=overwrite)
 
 class CleanupCommand(MusaCommand):
     def __init__(self,script):

@@ -343,6 +343,14 @@ class TrackAlbumart(object):
             raise TagError('Albumart to import is not loaded with image.')
         self.albumart = albumart
 
+    def save(self,path):
+        """
+        Save current albumart to given pathname
+        """
+        if self.albumart is None:
+            raise TagError('Error saving albumart: albumart is not loaded')
+        self.albumart.save(path)
+
 class TrackNumberingTag(object):
     """
     Parent class for processing track numbering info, including track and
