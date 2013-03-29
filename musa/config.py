@@ -120,6 +120,7 @@ class MusaConfigDB(object):
 
             self.codecs = CodecConfiguration(config=self)
             self.sync = SyncConfiguration(config=self)
+            self.sync.import_legacy_config()
 
         def get(self,key):
             c = self.cursor
@@ -201,8 +202,6 @@ class SyncConfiguration(dict):
         for target in [self.config.as_dict(c,r) for r in c.fetchall()]:
             self[target['name']] = target
 
-        self.import_legacy_config()
-
     @property
     def threads(self):
         return self.config.get('threads')
@@ -211,7 +210,7 @@ class SyncConfiguration(dict):
     def default_targets(self):
         return [k for k in self.keys() if self[k]['defaults']]
 
-    def create_target(self,name,synctype,src,dst,flags,defaults=False):
+    def create_target(self,name,synctype,src,dst,flags=None,defaults=False):
         c = self.config.cursor
         c.execute("""INSERT INTO synctargets (name,type,src,dst,flags,defaults) VALUES (?,?,?,?,?,?)""",
             (name,synctype,src,dst,flags,defaults,)
@@ -230,6 +229,15 @@ class SyncConfiguration(dict):
             if name=='options' or name in self.keys():
                 continue
             target['synctype'] = target.pop('type')
+            if 'rsync_flags' in target.keys():
+                target['flags'] = target.pop('rsync_flags')
+            
+            print target
+            existing = filter(lambda x: x['src']==target['src'] and x['dst']==target['dst'], self.values())
+            if existing:
+                continue
+
+            print name,target
             entry = self.config.sync.create_target(name,**target)
 
         try:
