@@ -35,6 +35,8 @@ class MusicTreePrefix(object):
         if not isinstance(extensions,list):
             raise PrefixError('Extensions must be a list')
         for ext in extensions:
+            if hasattr(ext,'extension'):
+                ext = ext.extension
             if not isinstance(ext,basestring):
                 raise PrefixError('Extensions must be a list of strings')
         self.extensions = extensions
@@ -86,15 +88,15 @@ class TreePrefixes(list):
             for path in DEFAULT_PATHS:
                 for codec,defaults in self.config.codecs.items():
                     prefix_path=os.path.join(path,codec)
-                    prefix = MusicTreePrefix(prefix_path,defaults['extensions'])
+                    prefix = MusicTreePrefix(prefix_path,defaults.extensions)
                     self.register_prefix(prefix)
 
                 if 'aac' in self.config.codecs.keys():
                     prefix_path=os.path.join(path,'m4a')
-                    prefix = MusicTreePrefix(prefix_path,self.config.codecs['aac']['extensions'])
+                    prefix = MusicTreePrefix(prefix_path,self.config.codecs.extensions('aac'))
                     self.register_prefix(prefix)
 
-            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC,self.config.codecs['aac']['extensions'])
+            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC,self.config.codecs.extensions('aac'))
             self.register_prefix(itunes_prefix)
             self.sort(lambda x,y: cmp(x.path,y.path))
             self.load_user_config()
@@ -127,7 +129,7 @@ class TreePrefixes(list):
                         continue
 
                     for path in reversed(paths):
-                        prefix = MusicTreePrefix(path,self.config.codecs[codec]['extensions'])
+                        prefix = MusicTreePrefix(path,self.config.codecs.extensions('aac'))
                         if codec_name=='itunes':
                             self.register_prefix(prefix,prepend=False)
                         else:

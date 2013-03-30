@@ -20,6 +20,7 @@ setup(
     install_requires = [
         'setproctitle', 'lxml','configobj', 'requests',
         'mutagen','python-musicbrainz2', 'boto>=2.0', 'PIL',
+        'sqlalchemy,
     ],
     scripts = glob.glob('bin/*'),
     packages = ['musa','musa.tags','musa.tags.formats'],

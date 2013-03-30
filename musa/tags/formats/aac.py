@@ -101,9 +101,9 @@ class AACAlbumArt(TrackAlbumart):
     def __init__(self,track,tag=AAC_ALBUMART_TAG):
         if not isinstance(track,aac):
             raise TagError('Track is not instance of aac')
+
         TrackAlbumart.__init__(self,track)
         self.tag = AAC_ALBUMART_TAG
-
         if not self.track.entry.has_key(self.tag):
             return
         try:
@@ -111,6 +111,7 @@ class AACAlbumArt(TrackAlbumart):
             albumart.import_data(self.track.entry[self.tag][0])
         except AlbumArtError,emsg:
             raise TagError('Error reading AAC albumart tag: %s' % emsg)
+
         self.albumart = albumart
 
     def import_albumart(self,albumart):
@@ -188,10 +189,13 @@ class aac(TagParser):
             self.entry = MP4(self.path)
         except IOError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
+
         except MP4StreamInfoError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
+
         except struct.error:
             raise TagError('Invalid tags in %s' % path)
+
         except RuntimeError,e:
             raise TagError('Error opening %s: %s' % (path,str(e)))
 

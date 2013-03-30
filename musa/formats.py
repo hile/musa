@@ -36,15 +36,17 @@ def filter_available_command_list(commands):
 
 def match_codec(path):
     ext = os.path.splitext(path)[1][1:]
+
     if ext == '':
         ext = path
+
     if ext in config.codecs.keys():
         return ext
-    for codec,details in config.codecs.items():
-        if not 'extensions' in details:
-            continue
-        if ext in details['extensions']:
+
+    for codec in config.codecs.values():
+        if ext in [e.extension for e in codec.extensions]:
             return codec
+
     return None
 
 def match_metadata(path):
@@ -80,12 +82,21 @@ class path_string(unicode):
         return os.path.splitext(self)[0]
 
     @property
+    def directory(self):
+        return os.path.dirname(self)
+
+    @property
+    def filename(self):
+        return os.path.basename(self)
+
+    @property
     def extension(self):
         return os.path.splitext(self)[1][1:]
 
 class MusaFileFormat(object):
     def __init__(self,path):
         self.config = MusaConfigDB()
+        self.log =  MusaLogger('musa').default_stream
         self.path = path_string(path)
         self.codec = None
         self.description = None
@@ -93,9 +104,7 @@ class MusaFileFormat(object):
 
         self.codec = match_codec(path)
         if self.codec is not None:
-            if not 'description' in self.config.codecs[self.codec]:
-                raise TypeError('No description for codec %s' % self.codec)
-            self.description = self.config.codecs[self.codec]['description'].lower()
+            self.description = self.codec.description.lower()
         else:
             m = match_metadata(path)
             if m:
@@ -108,6 +117,18 @@ class MusaFileFormat(object):
 
     def __repr__(self):
         return '%s %s' % (self.codec,self.path)
+
+    @property
+    def directory(self):
+        return os.path.dirname(self.path)
+
+    @property
+    def filename(self):
+        return os.path.basename(self.path)
+
+    @property
+    def extension(self):
+        return os.path.splitext(self.path)[1][1:]
 
     @property
     def size(self):
@@ -128,10 +149,10 @@ class MusaFileFormat(object):
         return os.stat(self.path).st_mtime
 
     def get_tag_parser(self):
-        if self.codec is None or self.codec not in TAG_PARSERS.keys():
+        if self.codec is None or self.codec.name not in TAG_PARSERS.keys():
             return None
         try:
-            classpath = TAG_PARSERS[self.codec]
+            classpath = TAG_PARSERS[self.codec.name]
             module_path = '.'.join(classpath.split('.')[:-1])
             class_name = classpath.split('.')[-1]
             m = __import__(module_path,globals(),fromlist=[class_name])

@@ -147,9 +147,11 @@ class TagParser(dict):
         """
         if not self.has_key(item):
             raise TagError('No such tag: %s' % item)
+
         value = self.__flatten_tag__(item)
         if value is None:
             raise TagError('No such string tag: %s' % item)
+
         return value
 
     def set_tag(self,item,value):
@@ -419,15 +421,19 @@ def Tags(path,fileformat=None):
 
     if fileformat is None:
         fileformat = MusaFileFormat(path)
+
     if not isinstance(fileformat,MusaFileFormat):
         raise TagError('File format must be MusaFileFormat instance')
+
     fileformat = fileformat
     if fileformat.is_metadata:
         raise TagError('Attempting to load audio tags from metadata file')
+
     if fileformat.codec is None:
         raise TagError('Unsupported audio file: %s' % path)
 
     tag_parser = fileformat.get_tag_parser()
     if tag_parser is None:
         return None
+
     return tag_parser(fileformat.codec,path)

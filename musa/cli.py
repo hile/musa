@@ -252,7 +252,8 @@ class MusaCommand(object):
             try:
                 return track.tags
             except TreeError,emsg:
-                pass
+                self.log.debug('Error parsing tags from %s: %s' % (track,path,emsg))
+                return None
         return None
 
     def get_codec(self,codec):

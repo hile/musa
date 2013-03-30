@@ -8,51 +8,7 @@ from datetime import datetime,timedelta
 from pytz import UTC
 
 from musa.log import MusaLogger
-from musa.tree import Tree,Track,TreeError
 from musa.formats import match_codec,match_metadata
-from musa.sqlite import SqliteDB,SqliteDBError
-
-TREE_SQL = [
-"""
-CREATE TABLE IF NOT EXISTS album (
-    id          INTEGER PRIMARY KEY,
-    path        TEXT UNIQUE COLLATE NOCASE,
-    atime       DATETIME,
-    ctime       DATETIME,
-    mtime       DATETIME,
-    checksum    TEXT
-)
-""",
-"""
-CREATE TABLE IF NOT EXISTS track (
-    id          INTEGER PRIMARY KEY,
-    album       INTEGER,
-    filename    TEXT COLLATE NOCASE,
-    extension   TEXT COLLATE NOCASE,
-    size        INTEGER,
-    atime       DATETIME,
-    ctime       DATETIME,
-    mtime       DATETIME,
-    checksum    TEXT,
-    FOREIGN KEY(album) REFERENCES album(id) ON DELETE CASCADE
-);
-""",
-"""CREATE UNIQUE INDEX IF NOT EXISTS track_paths ON track (album,filename,extension)""",
-"""CREATE UNIQUE INDEX IF NOT EXISTS track_mtimes ON track (album,filename,extension,mtime)""",
-"""
-CREATE TABLE IF NOT EXISTS tag (
-    id          INTEGER PRIMARY KEY,
-    track       INTEGER,
-    tag         TEXT COLLATE NOCASE,
-    value       TEXT COLLATE NOCASE,
-    base64      BOOLEAN DEFAULT 0,
-    FOREIGN KEY(track) REFERENCES track(id) ON DELETE CASCADE
-);
-""",
-"""
-CREATE UNIQUE INDEX IF NOT EXISTS file_tags ON tag(track,tag,value);
-""",
-]
 
 class TreeDB(SqliteDB):
     """
@@ -65,14 +21,6 @@ class TreeDB(SqliteDB):
     - may be removed at any moment
     """
 
-    def __init__(self,tree):
-        self.log =  MusaLogger('musa').default_stream
-        self.info = {'id': None, 'ctime': None, 'mtime': None }
-        if isinstance(tree,basestring):
-            tree = Tree(tree)
-        SqliteDB.__init__(self,tree.db_file,queries=TREE_SQL,foreign_keys=True)
-        self.tree = tree
-        self.path = self.tree.path
 
     class DBAlbum(list):
         """
