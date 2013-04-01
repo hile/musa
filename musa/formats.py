@@ -1,6 +1,8 @@
-#!/usr/bin/env python
-"""
-Guessing of supported file formats
+# coding=utf-8
+"""Music file formats
+
+Guessing of supported file formats and codecs based on extensions
+
 """
 
 import os
@@ -21,7 +23,7 @@ TAG_PARSERS = {
 PATH_CACHE = CommandPathCache()
 PATH_CACHE.update()
 
-config = MusaConfigDB()
+db = MusaConfigDB()
 
 def filter_available_command_list(commands):
     available = []
@@ -42,10 +44,10 @@ def match_codec(path):
     if ext == '':
         ext = path
 
-    if ext in config.codecs.keys():
+    if ext in db.codecs.keys():
         return ext
 
-    for codec in config.codecs.values():
+    for codec in db.codecs.values():
         if ext in [e.extension for e in codec.extensions]:
             return codec
 
@@ -96,8 +98,14 @@ class path_string(unicode):
         return os.path.splitext(self)[1][1:]
 
 class MusaFileFormat(object):
+    """MusaFileFormat
+
+    Common file format wrapper for various codecs
+
+    """
+
     def __init__(self,path):
-        self.config = MusaConfigDB()
+        self.db = MusaConfigDB()
         self.log =  MusaLogger('formats').default_stream
         self.path = path_string(path)
         self.codec = None
@@ -166,7 +174,7 @@ class MusaFileFormat(object):
     def get_available_encoders(self):
         if self.codec is None:
             return []
-        config = self.config.codecs[self.codec]
+        config = self.db.codecs[self.codec]
         if not 'encoders' in config:
             return []
         return filter_available_command_list(config['encoders'])
@@ -174,7 +182,7 @@ class MusaFileFormat(object):
     def get_available_decoders(self):
         if self.codec is None:
             return []
-        config = self.config.codecs[self.codec]
+        config = self.db.codecs[self.codec]
         if not 'decoders' in config:
             return []
         return filter_available_command_list(config['decoders'])

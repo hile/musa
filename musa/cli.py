@@ -1,6 +1,8 @@
+# coding=utf-8
+"""CLI utilities
 
-"""
 Command line utilities for musa
+
 """
 
 import sys,os,time,argparse,signal,socket
@@ -52,8 +54,8 @@ class MusaThread(threading.Thread):
 class MusaThreadManager(list):
     def __init__(self,name,threads=None):
         self.log =  MusaLogger(name).default_stream
-        self.config = MusaConfigDB()
-        self.threads = threads is not None and threads or self.config.get('threads')
+        self.db = MusaConfigDB()
+        self.threads = threads is not None and threads or self.db.get('threads')
 
     def enqueue(self,item):
         self.log.debug('enqueue: %s' % (src.path))
@@ -103,7 +105,7 @@ class MusaScript(object):
     Common musa CLI tool setup class
     """
     def __init__(self,name=None,description=None,epilog=None,debug_flag=True,subcommands=True):
-        self.config = MusaConfigDB()
+        self.db = MusaConfigDB()
         self.name = os.path.basename(sys.argv[0])
         setproctitle('%s %s' % (self.name,' '.join(sys.argv[1:])))
         signal.signal(signal.SIGINT, self.SIGINT)

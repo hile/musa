@@ -1,6 +1,8 @@
 # coding=utf-8
-"""
+"""vorbis tags
+
 Vorbis file tag parser
+
 """
 
 from mutagen.oggvorbis import OggVorbis,OggVorbisHeaderError

@@ -1,6 +1,8 @@
 # coding=utf-8
-"""
+"""FLAC tags
+
 Flac file tag parser
+
 """
 
 from mutagen.flac import FLAC

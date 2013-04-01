@@ -1,12 +1,15 @@
-#!/usr/bin/env python
-"""Musa Models
+# coding=utf-8
+"""Musa database models
 
 SQLAlchemy models for musa configuration and music tree databases
 
 """
 
 import os
+import hashlib
 import base64
+import json
+import pytz
 from datetime import datetime,timedelta
 
 from sqlite3 import Connection as SQLite3Connection
@@ -321,7 +324,7 @@ class Tree(Base):
     def __repr__(self):
         return self.path
 
-    def update(self,session,tree):
+    def update(self,session,tree,update_checksum=True):
         added,updated,deleted = 0,0,0
 
         for track in tree:
@@ -332,9 +335,11 @@ class Tree(Base):
                 logger.debug('Create album: %s' % track.directory)
                 db_album = Album(tree=self,directory=track.directory, mtime=album_mtime)
                 session.add(db_album)
-            else:
-                if db_album.mtime!=album_mtime:
+            elif db_album.mtime!=album_mtime:
                     db_album.mtime = album_mtime
+            else:
+                logger.debug('Not modified: %s' % track.directory)
+                continue
 
             db_track = session.query(Track).filter(
                 Track.directory==track.path.directory,
@@ -358,7 +363,15 @@ class Tree(Base):
                 db_track.update(session,track)
                 updated += 1
 
+            elif not db_track.checksum and update_checksum:
+                db_track.update_checksum(session)
+                updated += 1
+
             session.commit()
+
+        for album in self.albums:
+            if not album.exists:
+                session.delete(album)
 
         for track in self.tracks:
             if not track.exists:
@@ -373,6 +386,15 @@ class Tree(Base):
         logger.debug('Matching %s: %s' % (self,match))
         return []
 
+    def to_json(self):
+        return json.dumps({
+            'id': self.id,
+            'path': self.path,
+            'description': self.description,
+            'albums': [{'id': a.id, 'path': a.directory} for a in self.albums],
+            'total_albums': len(self.albums),
+            'total_songs': len(self.songs),
+        })
 
 class Album(Base):
 
@@ -410,6 +432,29 @@ class Album(Base):
     @property
     def exists(self):
         return os.path.isdir(self.directory)
+
+    @property
+    def modified_isoformat(self,tz=None):
+        if self.mtime is None:
+            return None
+
+        tval = datetime.fromtimestamp(self.mtime).replace(tzinfo=pytz.utc)
+
+        if tz is not None:
+            if isinstance(tz,basestring):
+                tval = tval.astimezone(pytz.timezone(tz))
+            else:
+                tval = tval.astimezone(tz)
+
+        return tval.isoformat()
+
+    def to_json(self):
+        return json.dumps({
+            'id': self.id,
+            'path': self.directory,
+            'modified': self.modified_isoformat,
+            'tracks': [{'id': t.id, 'filename': t.filename} for t in self.tracks]
+        })
 
 class AlbumArt(Base):
 
@@ -480,14 +525,50 @@ class Track(Base):
     def exists(self):
         return os.path.isfile(self.path)
 
-    def update(self,session,track):
-        logger.debug('update track %s' % track.path)
+    @property
+    def modified_isoformat(self,tz=None):
+        if self.mtime is None:
+            return None
+
+        tval = datetime.fromtimestamp(self.mtime).replace(tzinfo=pytz.utc)
+
+        if tz is not None:
+            if isinstance(tz,basestring):
+                tval = tval.astimezone(pytz.timezone(tz))
+            else:
+                tval = tval.astimezone(tz)
+
+        return tval.isoformat()
+
+    def update(self,session,track,update_checksum=True):
+        logger.debug('update track: %s' % self.path)
         self.mtime = track.mtime
         for tag in session.query(Tag).filter(Tag.track == self):
             session.delete(tag)
 
         for tag,value in track.tags.items():
             session.add(Tag(track=self,tag=tag,value=value))
+
+        if update_checksum:
+            self.update_checksum(session)
+
+    def update_checksum(self,session):
+        logger.debug('update MD5: %s' % self.path)
+        with open(self.path,'rb') as fd:
+            m = hashlib.md5()
+            m.update(fd.read())
+            self.checksum = m.hexdigest()
+            session.commit()
+
+    def to_json(self):
+        return json.dumps({
+            'id': self.id,
+            'filename': self.path,
+            'md5': self.checksum,
+            'modified': self.modified_isoformat,
+            'tags': dict((t.tag,t.value) for t in self.tags)
+        })
+
 
 class Tag(Base):
 
@@ -605,13 +686,26 @@ class MusaDB(object):
 
         return self.query(Playlist).all()
 
-
     @property
     def trees(self):
 
         """Return registered Tree objects from database"""
 
         return self.query(Tree).all()
+
+    @property
+    def albums(self):
+
+        """Return registered Album objects from database"""
+
+        return self.query(Album).all()
+
+    @property
+    def tracks(self):
+
+        """Return registered Track objects from database"""
+
+        return self.query(Track).all()
 
     def register_tree_type(self, name, description=''):
         existing = self.query(TreeType).filter(TreeType.name==name).first()
@@ -641,6 +735,12 @@ class MusaDB(object):
 
         self.delete(existing)
 
+    def get_playlist_source(self,path):
+        return self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+
+    def get_playlist(self,path):
+        return self.query(Playlist).filter(Playlist.path==path).first()
+
     def register_tree(self,path,description='',tree_type='songs'):
         if isinstance(path,str):
             path = unicode(path,'utf-8')
@@ -665,9 +765,10 @@ class MusaDB(object):
     def get_tree(self,path,tree_type='songs'):
         return self.query(Tree).filter(Tree.path==path).first()
 
-    def get_playlist_source(self,path):
-        return self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+    def get_album(self,path):
+        return self.query(Album).filter(Album.directory==path).first()
 
-    def get_playlist(self,path):
-        return self.query(Playlist).filter(Playlist.path==path).first()
-
+    def get_track(self,path):
+        directory = os.path.dirname(path)
+        filename = os.path.basename(path)
+        return self.query(Track).filter(Track.directory==directory,Track.filename==filename).first()

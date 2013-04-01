@@ -1,5 +1,8 @@
-"""
+# coding=utf-8
+"""mp3 tags
+
 mp3 file tag parser
+
 """
 
 from mutagen.mp3 import MP3

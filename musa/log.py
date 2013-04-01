@@ -1,6 +1,8 @@
+# coding=utf-8
+"""Logging functions
 
-"""
 Musa debug and file logging facilities
+
 """
 
 import os,logging
@@ -15,9 +17,11 @@ DEFAULT_LOGSIZE_LIMIT = 2**20
 DEFAULT_LOG_BACKUPS = 10
 
 class MusaLogger(object):
-    """
+    """MusaLogger
+
     Class for common script logging tasks. Implemented as singleton to prevent
     errors in duplicate handler initialization.
+
     """
     __instances = {}
     def __init__(self,name=None):
@@ -30,8 +34,10 @@ class MusaLogger(object):
         self.__dict__['name'] = name
 
     class MusaLoggerInstance(dict):
-        """
+        """MusaLoggerInstance
+
         Singleton implementation of logging configuration for one program
+
         """
         def __init__(self,name):
             self.name = name

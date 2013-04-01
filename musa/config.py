@@ -1,5 +1,9 @@
-"""
-Musa configuration database
+# coding=utf-8
+"""Musa configuration database
+
+Musa configuration database, implementing the database classes in
+musa.models for cli scripts as script.cli.db.
+
 """
 
 import os
@@ -20,19 +24,19 @@ class MusaConfigDB(object):
 
     """MusaConfigDB
 
-    Musa configuration settings API.
+    Musa database settings API.
 
     """
 
-    __config_instance = None
+    __db_instance = None
     def __init__(self,path=None):
 
-        if not MusaConfigDB.__config_instance:
-            MusaConfigDB.__config_instance = MusaConfigDB.MusaConfigInstance(path)
-        self.__dict__['MusaConfigDB.__config_instance'] = MusaConfigDB.__config_instance
+        if not MusaConfigDB.__db_instance:
+            MusaConfigDB.__db_instance = MusaConfigDB.MusaConfigInstance(path)
+        self.__dict__['MusaConfigDB.__db_instance'] = MusaConfigDB.__db_instance
 
     def __getattr__(self, attr):
-        return getattr(self.__config_instance, attr)
+        return getattr(self.__db_instance, attr)
 
     class MusaConfigInstance(MusaDB):
 
@@ -53,8 +57,8 @@ class MusaConfigDB(object):
                 self.add(treetypes)
                 self.commit()
 
-            self.codecs = CodecConfiguration(config=self)
-            self.sync = SyncConfiguration(config=self)
+            self.codecs = CodecConfiguration(db=self)
+            self.sync = SyncConfiguration(db=self)
             self.sync.import_legacy_config()
 
         def get(self, key):
@@ -105,16 +109,16 @@ class SyncConfiguration(dict):
 
     """
 
-    def __init__(self, config):
+    def __init__(self, db):
         self.log = MusaLogger('musa').default_stream
-        self.config = config
+        self.db = db
 
-        for target in self.config.query(SyncTarget):
-            self[target.name] = self.config.as_dict(target)
+        for target in self.db.query(SyncTarget):
+            self[target.name] = self.db.as_dict(target)
 
     @property
     def threads(self):
-        return self.config.get('threads')
+        return self.db.get('threads')
 
     @property
     def default_targets(self):
@@ -122,8 +126,8 @@ class SyncConfiguration(dict):
 
     def create_target(self,name,synctype,src,dst,flags=None,defaults=False):
         target = SyncTarget(name=name,type=synctype,src=src,dst=dst,flags=flags,defaults=defaults)
-        self.config.save(target)
-        self[name] = self.config.as_dict(target)
+        self.db.save(target)
+        self[name] = self.db.as_dict(target)
 
     def import_legacy_config(self,cleanup=False):
         path = LEGACY_SYNC_CONFIG
@@ -142,7 +146,7 @@ class SyncConfiguration(dict):
             if existing:
                 continue
 
-            entry = self.config.sync.create_target(name,**target)
+            entry = self.db.sync.create_target(name,**target)
 
         try:
             os.unlink(path)
@@ -158,9 +162,9 @@ class CodecConfiguration(dict):
 
     """
 
-    def __init__(self, config):
+    def __init__(self, db):
         self.log = MusaLogger('musa').default_stream
-        self.config = config
+        self.db = db
         self.load()
 
     def register_codec(self,name,extensions,description='',decoders=[],encoders=[]):
@@ -171,11 +175,11 @@ class CodecConfiguration(dict):
         extensions = [Extension(codec=codec,extension=e) for e in extensions]
         decoders = [Decoder(codec=codec,priority=i,command=d) for i,d in enumerate(decoders)]
         encoders = [Encoder(codec=codec,priority=i,command=e) for i,e in enumerate(encoders)]
-        self.config.add([codec]+extensions+decoders+encoders)
+        self.db.add([codec]+extensions+decoders+encoders)
         return codec
 
     def load(self):
-        for codec in self.config.query(Codec).all():
+        for codec in self.db.query(Codec).all():
             self[codec.name] = codec
 
         for name, settings in DEFAULT_CODECS.items():
@@ -186,7 +190,7 @@ class CodecConfiguration(dict):
             self[codec.name] = codec
 
     def add_decoder(self,codec,command,priority=None):
-        codec = self.config.query(Codec).filter(Codec.name==name)
+        codec = self.db.query(Codec).filter(Codec.name==name)
 
         if priority is None:
             # TODO - implement inserting with given priority, pushing
@@ -199,16 +203,16 @@ class CodecConfiguration(dict):
         self.session.commmit()
 
     def remove_decoder(self,codec,command,priority=None):
-        codec = self.config.query(Codec).filter(Codec.name==name)
+        codec = self.db.query(Codec).filter(Codec.name==name)
 
         if priority is not None:
-            decoders = self.config.query(Decoder).filter(
+            decoders = self.db.query(Decoder).filter(
                 Decoder.codec==codec,
                 Decoder.priority==priority,
                 Decoder.command==command
             )
         else:
-            decoders = self.config.query(Decoder).filter(
+            decoders = self.db.query(Decoder).filter(
                 Decoder.codec==codec,
                 Decoder.command==command
             )
@@ -217,9 +221,9 @@ class CodecConfiguration(dict):
         self.session.commit()
 
     def update_codec_description(self, name, description):
-        codec = self.config.query(Codec).filter(Codec.name==name)
+        codec = self.db.query(Codec).filter(Codec.name==name)
         codec.description = description
-        self.config.commit()
+        self.db.commit()
 
     def extensions(self,codec):
         if codec in self.keys():

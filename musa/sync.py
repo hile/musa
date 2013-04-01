@@ -1,5 +1,8 @@
-"""
+# coding=utf-8
+"""Tree synchronization
+
 Parsing of syncing options
+
 """
 
 import os,shutil
@@ -34,6 +37,7 @@ def ntfs_rename(path):
     }
     for c,r in REPLACE_MAP.items():
         path = path.replace(c,r)
+
     # Silly system does not allow components ending with .
     path = os.sep.join(x.rstrip('. ') for x in path.split(os.sep))
     return path
@@ -72,11 +76,13 @@ class SyncThread(MusaThread):
 class FilesystemSyncThread(SyncThread):
     def __init__(self,index,src,dst,delete=False,rename=None):
         SyncThread.__init__(self,index,src,dst,delete)
+
         if rename is not None:
             try:
                 rename = RENAME_CALLBACKS[rename]
             except KeyError:
                 raise SyncError('Unknown rename callback: %s' % rename)
+
         self.rename = rename
 
     def copy_track(self,src,dst):
@@ -154,7 +160,7 @@ class SyncManager(MusaThreadManager):
 
     def parse_target(self,name):
         try:
-            target = self.config.sync[name]
+            target = self.db.sync[name]
         except KeyError:
             return None
         if not 'src' in target:

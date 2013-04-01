@@ -1,5 +1,8 @@
-"""
-Default settings for musa configuration database
+# coding=utf-8
+"""Musa default settings
+
+Default settings for musa configuration database and commands.
+
 """
 
 import sys,os

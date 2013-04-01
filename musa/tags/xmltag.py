@@ -1,5 +1,8 @@
-"""
+# coding=utf-8
+"""XML tags
+
 XML schema representation of audio file metadata tags
+
 """
 
 from lxml import etree as ET

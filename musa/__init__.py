@@ -1,11 +1,22 @@
+# coding=utf-8
+"""Musa audio library management tools
 
-__all__ = ['cli','formats','metadata','tags']
+Audio file processing libraries
 
-import os,sys,unicodedata
+"""
+
+import os
+import sys
+import unicodedata
 
 from musa.defaults import MUSA_USER_DIR
 
+__all__ = [
+    'cli', 'config', 'defaults', 'formats', 'log', 'metadata', 'models', 'playlist', 'prefixes', 'sync', 'tags', 'transcoder', 'tree'
+]
+
 class MusaError(Exception):
+
     def __str__(self):
         return self.args[0]
 
@@ -15,12 +26,14 @@ def normalized(path,normalization='NFC'):
     on other platform return the original string as unicode
     """
     if sys.platform != 'darwin':
-        return type(path)==unicode and path or unicode(path,'utf-8')
-    if not isinstance(path,unicode):
-        path = unicode(path,'utf-8')
-    return unicodedata.normalize(normalization,path)
+        return type(path) == unicode and path or unicode(path, 'utf-8')
+    if not isinstance(path, unicode):
+        path = unicode(path, 'utf-8')
+    return unicodedata.normalize(normalization, path)
+
 
 class CommandPathCache(list):
+
     """
     Class to represent commands on user's search path.
     """
@@ -34,19 +47,19 @@ class CommandPathCache(list):
         Updates the commands available on user's PATH
         """
         self.paths = []
-        self.__delslice__(0,len(self))
+        self.__delslice__(0, len(self))
         for path in os.getenv('PATH').split(os.pathsep):
             if not self.paths.count(path):
                 self.paths.append(path)
         for path in self.paths:
             if not os.path.isdir(path):
                 continue
-            for cmd in [os.path.join(path,f) for f in os.listdir(path)]:
-                if os.path.isdir(cmd) or not os.access(cmd,os.X_OK):
+            for cmd in [os.path.join(path, f) for f in os.listdir(path)]:
+                if os.path.isdir(cmd) or not os.access(cmd, os.X_OK):
                     continue
                 self.append(cmd)
 
-    def versions(self,name):
+    def versions(self, name):
         """
         Returns all commands with given name on path, ordered by PATH search
         order.
@@ -55,7 +68,7 @@ class CommandPathCache(list):
             self.update()
         return filter(lambda x: os.path.basename(x) == name, self)
 
-    def which(self,name):
+    def which(self, name):
         """
         Return first matching path to command given with name, or None if
         command is not on path
@@ -70,8 +83,7 @@ class CommandPathCache(list):
 if not os.path.isdir(MUSA_USER_DIR):
     try:
         os.makedirs(MUSA_USER_DIR)
-    except OSError,(ecode,emsg):
+    except OSError, (ecode, emsg):
         raise MusaError(
-             'Error creating directory %s: %s' % (dst_dir,emsg)
+             'Error creating directory %s: %s' % (dst_dir, emsg)
         )
-

@@ -1,6 +1,8 @@
 # coding=utf-8
-"""
+"""AAC tags
+
 AAC file tag parser
+
 """
 
 import base64,struct

@@ -1,10 +1,11 @@
-"""
-Tagging utilities for file formats in soundforest.
+# coding=utf-8
+"""Tag processing
 
-Includes
+Audio file tag, albumart and tag output processing classes
+
 """
 
-__all__ = ['albumart','constants','formats','xml']
+__all__ = ['albumart','constants','formats','xmltag']
 
 class TagError(Exception):
     """

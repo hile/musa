@@ -1,6 +1,8 @@
-"""
-Tag constants, including names and descriptions of
-standard tags
+# coding=utf-8
+"""Tag constants
+
+Tag constants, including names and descriptions of standard tags
+
 """
 
 import time

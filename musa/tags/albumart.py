@@ -1,6 +1,8 @@
-#!/usr/bin/env python
-"""
+# coding=utf-8
+"""musa.formats.albumart
+
 Abstraction for album art image format processing
+
 """
 
 import os,requests,logging,StringIO

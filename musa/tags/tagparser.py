@@ -1,5 +1,8 @@
-"""
+# coding=utf-8
+"""Tag abstraction
+
 Tag metadata reader and writer classes
+
 """
 
 import os,base64
