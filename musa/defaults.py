@@ -20,6 +20,14 @@ INITIAL_SETTINGS = {
     'default_codec': 'mp3',
 }
 
+# Default audio tree types to register in configuration database
+DEFAULT_TREE_TYPES = {
+  'songs': 'Full song audio files',
+  'samples': 'Audio samples',
+  'loops': 'Audio loops',
+}
+
+
 # Default codec commands and parameters when nothing is configured yet
 DEFAULT_CODECS = {
 

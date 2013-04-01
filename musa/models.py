@@ -6,6 +6,7 @@ SQLAlchemy models for musa configuration and music tree databases
 """
 
 import os
+from datetime import datetime,timedelta
 
 from sqlite3 import Connection as SQLite3Connection
 from sqlalchemy import create_engine, event, Column, ForeignKey, Integer, Boolean, Date
@@ -20,9 +21,14 @@ DEFAULT_DATABASE = os.path.join(MUSA_USER_DIR, 'musa.sqlite')
 
 Base = declarative_base()
 
+
 class SafeUnicode(TypeDecorator):
-    """Safely coerce Python bytestrings to Unicode
-    before passing off to the database."""
+
+    """SafeUnicode columns
+
+    Safely coerce Python bytestrings to Unicode before passing off to the database.
+
+    """
 
     impl = Unicode
 
@@ -31,9 +37,13 @@ class SafeUnicode(TypeDecorator):
             value = value.decode('utf-8')
         return value
 
+
 class Setting(Base):
 
-    """Musa internal application preferences
+    """Setting
+
+    Musa internal application preferences
+
     """
 
     __tablename__ = 'musa_settings'
@@ -44,6 +54,13 @@ class Setting(Base):
 
 
 class SyncTarget(Base):
+
+    """SyncTarget
+
+    Library tree synchronization target entry
+
+    """
+
     __tablename__ = 'musa_sync_targets'
 
     id = Column(Integer, primary_key=True)
@@ -54,9 +71,13 @@ class SyncTarget(Base):
     flags = Column(SafeUnicode)
     defaults = Column(Boolean)
 
+
 class Codec(Base):
 
-    """Audio format codecs
+    """Codec
+
+    Audio format codecs
+
     """
 
     __tablename__ = 'codecs'
@@ -71,7 +92,10 @@ class Codec(Base):
 
 class Extension(Base):
 
-    """Filename extensions associated with audio format codecs
+    """Extension
+
+    Filename extensions associated with audio format codecs
+
     """
 
     __tablename__ = 'extensions'
@@ -79,8 +103,8 @@ class Extension(Base):
     id = Column(Integer, primary_key=True)
     extension = Column(SafeUnicode)
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship("Codec", single_parent=False,
-        backref=backref('extensions', order_by=extension, cascade="all, delete, delete-orphan")
+    codec = relationship('Codec', single_parent=False,
+        backref=backref('extensions', order_by=extension, cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
@@ -89,7 +113,10 @@ class Extension(Base):
 
 class Decoder(Base):
 
-    """Audio format codec decoders
+    """Decoder
+
+    Audio format codec decoder commands
+
     """
 
     __tablename__ = 'decoders'
@@ -98,8 +125,8 @@ class Decoder(Base):
     priority = Column(Integer)
     command = Column(SafeUnicode)
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship("Codec", single_parent=False,
-        backref=backref('decoders', order_by=priority, cascade="all, delete, delete-orphan")
+    codec = relationship('Codec', single_parent=False,
+        backref=backref('decoders', order_by=priority, cascade='all, delete, delete-orphan')
         )
 
     def __repr__(self):
@@ -108,7 +135,10 @@ class Decoder(Base):
 
 class Encoder(Base):
 
-    """Audio format codec encoders
+    """Encoder
+
+    Audio format codec encoder commands
+
     """
 
     __tablename__ = 'encoders'
@@ -117,9 +147,9 @@ class Encoder(Base):
     priority = Column(Integer)
     command = Column(SafeUnicode)
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship("Codec", single_parent=False,
-        backref=backref('encoders', order_by=priority, cascade="all, delete, delete-orphan")
-        )
+    codec = relationship('Codec', single_parent=False,
+        backref=backref('encoders', order_by=priority, cascade='all, delete, delete-orphan')
+    )
 
     def __repr__(self):
         return '%s encoder: %s' % (self.codec.name, self.command)
@@ -127,7 +157,10 @@ class Encoder(Base):
 
 class PlaylistSource(Base):
 
-    """Playlist parent folders
+    """PlaylistSource
+
+    Playlist parent folders
+
     """
 
     __tablename__ = 'playlist_sources'
@@ -139,10 +172,45 @@ class PlaylistSource(Base):
     def __repr__(self):
         return '%s: %s' % (self.name, self.path)
 
+    def update(self,session,source):
+        for playlist in source:
+
+            directory = os.path.realpath(playlist.directory)
+            db_playlist = session.query(Playlist).filter(
+                Playlist.parent==self,
+                Playlist.folder==directory,
+                Playlist.name==playlist.name,
+                Playlist.extension==playlist.extension
+            ).first()
+
+            if db_playlist is None:
+                db_playlist = Playlist(
+                    parent=self,
+                    folder=directory,
+                    name=playlist.name,
+                    extension=playlist.extension
+                )
+                session.add(db_playlist)
+
+            for existing_track in db_playlist.tracks:
+                session.delete(existing_track)
+
+            playlist.read()
+            tracks = []
+            for index,path in enumerate(playlist):
+                position = index+1
+                tracks.append(PlaylistTrack(playlist=db_playlist,path=path,position=position))
+            session.add_all(tracks)
+            db_playlist.updated = datetime.now()
+            session.commit()
+
 
 class Playlist(Base):
 
-    """Playlist of audio tracks
+    """Playlist
+
+    Playlist file of audio tracks
+
     """
 
     __tablename__ = 'playlists'
@@ -152,32 +220,38 @@ class Playlist(Base):
     updated = Column(Date)
     folder = Column(SafeUnicode)
     name = Column(SafeUnicode)
+    extension = Column(SafeUnicode)
     description = Column(SafeUnicode)
 
     parent_id = Column(Integer, ForeignKey('playlist_sources.id'), nullable=False)
-    parent = relationship("PlaylistSource", single_parent=False,
-        backref=backref('playlists', order_by=[folder, name], cascade="all, delete, delete-orphan")
+    parent = relationship('PlaylistSource', single_parent=False,
+        backref=backref('playlists', order_by=[folder, name], cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
         return '%s: %d tracks' % (os.sep.join([self.folder, self.name]), len(self.tracks))
 
+    def __len__(self):
+        return len(self.tracks)
 
 class PlaylistTrack(Base):
 
-    """Audio track in a playlist
+    """PlaylistTrack
+
+    Audio track in a playlist
+
     """
 
     __tablename__ = 'playlist_tracks'
 
     id = Column(Integer, primary_key=True)
 
-    position = Column(Integer, unique=True)
+    position = Column(Integer)
     path = Column(SafeUnicode)
 
     playlist_id = Column(Integer, ForeignKey('playlists.id'), nullable=False)
-    playlist = relationship("Playlist", single_parent=False,
-        backref=backref('tracks', order_by=position, cascade="all, delete, delete-orphan")
+    playlist = relationship('Playlist', single_parent=False,
+        backref=backref('tracks', order_by=position, cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
@@ -186,7 +260,10 @@ class PlaylistTrack(Base):
 
 class TreeType(Base):
 
-    """Audio file tree types (music, samples, loops etc.)
+    """TreeType
+
+    Audio file tree types (music, samples, loops etc.)
+
     """
 
     __tablename__ = 'treetypes'
@@ -201,7 +278,10 @@ class TreeType(Base):
 
 class Tree(Base):
 
-    """Audio file tree
+    """Tree
+
+    Audio file tree
+
     """
 
     __tablename__ = 'trees'
@@ -211,8 +291,8 @@ class Tree(Base):
     description = Column(SafeUnicode)
 
     type_id = Column(Integer, ForeignKey('treetypes.id'), nullable=True)
-    type = relationship("TreeType", single_parent=True,
-        backref=backref('trees', order_by=path, cascade="all, delete, delete-orphan")
+    type = relationship('TreeType', single_parent=True,
+        backref=backref('trees', order_by=path, cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
@@ -236,7 +316,7 @@ class Tree(Base):
                 added +=1
 
             else:
-                db_track = session.query(Track).filter(Track.directory==track.path.directory,Track.filename==track.path.filename).first()
+                db_track = session.query(Track).filter(Track.directory == track.path.directory,Track.filename == track.path.filename).first()
                 if db_track:
                     if track.mtime != db_track.mtime:
                         db_track.update_tags(session,track.tags)
@@ -257,9 +337,50 @@ class Tree(Base):
         print 'Matching %s: %s' % (self,match)
         return []
 
+
+class Album(Base):
+
+    """Album
+
+    Album of music tracks in tree database.
+
+    """
+
+    __tablename__ = 'albums'
+
+    id = Column(Integer, primary_key=True)
+
+    directory = Column(SafeUnicode)
+    tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
+    tree = relationship('Tree', single_parent=False,
+        backref=backref('albums', order_by=directory, cascade='all, delete, delete-orphan')
+    )
+
+    def __repr__(self):
+        return self.directory
+
+    @property
+    def path(self):
+        return self.directory
+
+    @property
+    def relative_path(self):
+        path = self.directory
+        if self.tree and path[:len(self.tree.path)]==self.tree.path:
+            path = path[len(self.tree.path):].lstrip(os.sep)
+        return path
+
+    @property
+    def exists(self):
+        return os.path.isdir(self.directory)
+
+
 class Track(Base):
 
-    """Audio file. Optionally associated with a audio file tree
+    """Track
+
+    Audio file. Optionally associated with a audio file tree
+
     """
 
     __tablename__ = 'tracks'
@@ -274,23 +395,34 @@ class Track(Base):
     deleted = Column(Boolean)
 
     tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
-    tree = relationship("Tree", single_parent=False,
-        backref=backref('tracks', order_by=[directory, filename], cascade="all, delete, delete-orphan")
+    tree = relationship('Tree', single_parent=False,
+        backref=backref('tracks', order_by=[directory, filename], cascade='all, delete, delete-orphan')
+    )
+    album_id = Column(Integer, ForeignKey('albums.id'), nullable=True)
+    album = relationship('Album', single_parent=False,
+        backref=backref('tracks', order_by=[directory,filename], cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
-        return os.sep.join([self.directory, self.filename])
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                return os.sep.join([self.directory, self.filename])
 
     @property
     def path(self):
         return os.path.join(self.directory,self.filename)
 
     @property
+    def relative_path(self):
+        path = os.path.join(self.directory,self.filename)
+        if self.tree and path[:len(self.tree.path)]==self.tree.path:
+            path = path[len(self.tree.path):].lstrip(os.sep)
+        return path
+
+    @property
     def exists(self):
         return os.path.isfile(self.path)
 
     def update_tags(self,session,tags):
-        for tag in session.query(Tag).filter(Tag.track==self):
+        for tag in session.query(Tag).filter(Tag.track == self):
             session.delete(tag)
 
         for tag,value in tags.items():
@@ -298,19 +430,22 @@ class Track(Base):
 
 class Tag(Base):
 
-    """Tags for an audio file
+    """Tag
+
+    Metadata tag for an audio file
+
     """
 
-    __tablename__ = 'tags'
+    __tablename__='tags'
 
-    id = Column(Integer, primary_key=True)
-    tag = Column(SafeUnicode)
-    value = Column(SafeUnicode)
-    base64_encoded = Column(Boolean)
+    id=Column(Integer, primary_key = True)
+    tag=Column(SafeUnicode)
+    value=Column(SafeUnicode)
+    base64_encoded=Column(Boolean)
 
-    track_id = Column(Integer, ForeignKey('tracks.id'), nullable=False)
-    track = relationship("Track", single_parent=False,
-        backref=backref('tags', order_by=tag, cascade="all, delete, delete-orphan")
+    track_id=Column(Integer, ForeignKey('tracks.id'), nullable = False)
+    track=relationship('Track', single_parent = False,
+        backref = backref('tags', order_by=tag, cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
@@ -318,7 +453,18 @@ class Tag(Base):
 
 
 class MusaDB(object):
+
+    """MusaDB
+
+    Music database storing settings, synchronization data and music tree file metadata
+
+    """
+
     def __init__(self,path=None,engine=None,debug=False):
+        """
+        By default, use sqlite databases in file given by path.
+        """
+
         if engine is None:
             if path is None:
                 path = DEFAULT_DATABASE
@@ -339,54 +485,128 @@ class MusaDB(object):
         self.session = session_instance()
 
     def _fk_pragma_on_connect(self, connection, record):
+        """Enable foreign keys for sqlite databases"""
         if isinstance(connection, SQLite3Connection):
             cursor = connection.cursor()
             cursor.execute('pragma foreign_keys=ON')
             cursor.close()
 
-    def query(self,*args,**kwargs):
+    def query(self, *args, **kwargs):
+        """Wrapper to do a session query"""
         return self.session.query(*args,**kwargs)
 
+    def rollback(self):
+        """Wrapper to rolllback current session query"""
+        return self.session.rollback()
+
     def commit(self):
+        """Wrapper to commit current session query"""
         return self.session.commit()
 
-    def as_dict(self,result):
+    def as_dict(self, result):
+        """Returns current query Base result as dictionary"""
         if not hasattr(result,'__table__'):
             raise ValueError('Not a sqlalchemy ORM result')
         return dict((k.name,getattr(result,k.name)) for k in result.__table__.columns)
 
-    def add(self,items):
+    def add(self, items):
+        """Add items in query session, committing changes"""
+
         if isinstance(items,list):
             self.session.add_all(items)
         else:
             self.session.add(items)
+
+        self.session.commit()
+
+    def delete(self, items):
+        """Delete items in query session, committing changes"""
+
+        if isinstance(items,list):
+            for item in items:
+                self.session.delete(item)
+        else:
+            self.session.delete(items)
+
         self.session.commit()
 
     @property
-    def trees(self):
-        return self.session.query(Tree).all()
+    def playlist_sources(self):
 
-    def register_tree(self,path,description=''):
+        """Return registered PlaylistSource objects from database"""
+
+        return self.query(PlaylistSource).all()
+
+    @property
+    def playlist(self):
+
+        """Return registered Playlist objects from database"""
+
+        return self.query(Playlist).all()
+
+
+    @property
+    def trees(self):
+
+        """Return registered Tree objects from database"""
+
+        return self.query(Tree).all()
+
+    def register_tree_type(self, name, description=''):
+        existing = self.query(TreeType).filter(TreeType.name==name).first()
+        if existing:
+            raise MusaError('Tree type was already registered: %s' % name)
+
+        self.add(TreeType(name=name, description=description))
+
+    def unregister_tree_type(self, name, description=''):
+        existing = self.query(TreeType).filter(TreeType.name==name).first()
+        if not existing:
+            raise MusaError('Tree type was not registered: %s' % name)
+
+        self.delete(existing)
+
+    def register_playlist_source(self,path,name='Playlists'):
+        existing = self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+        if existing:
+            raise MusaError('Playlist source is already registered: %s' % path)
+
+        self.add(PlaylistSource(path=path,name=name))
+
+    def unregister_playlist_source(self, path):
+        existing = self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+        if not existing:
+            raise MusaError('Playlist source is not registered: %s' % path)
+
+        self.delete(existing)
+
+    def register_tree(self,path,description='',tree_type='songs'):
         if isinstance(path,str):
             path = unicode(path,'utf-8')
-        existing = self.session.query(Tree).filter(Tree.path==path)
+
+        existing = self.query(Tree).filter(Tree.path==path).first()
         if not existing:
             raise MusaError('Tree was already registered: %s' % path)
 
-        try:
-            self.session.add(Tree(path=path,description=description))
-            self.session.commit()
-        except IntegrityError:
-            raise MusaError('Tree was already registered: %s' % path)
+        tt = self.get_tree_type(tree_type)
+        self.add(Tree(path=path,description=description,type=tt))
 
     def unregister_tree(self,path,description=''):
-        existing = self.session.query(Tree).filter(Tree.path==path).first()
+        existing = self.query(Tree).filter(Tree.path==path).first()
         if not existing:
             raise MusaError('Tree was not registered: %s' % path)
 
-        self.session.delete(existing)
-        self.session.commit()
+        self.delete(existing)
 
-    def get_tree(self,path):
-        tree = self.session.query(Tree).filter(Tree.path==path).first()
-        return tree
+    def get_tree_type(self,name):
+        return self.query(TreeType).filter(TreeType.name==name).first()
+
+    def get_tree(self,path,tree_type='songs'):
+        return self.query(Tree).filter(Tree.path==path).first()
+
+    def get_playlist_source(self,path):
+        return self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+
+    def get_playlist(self,path):
+        return self.query(Playlist).filter(Playlist.path==path).first()
+

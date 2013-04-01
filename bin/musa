@@ -25,6 +25,12 @@ from musa.transcoder import MusaTranscoder, TranscoderError
 
 class AlbumArtCommand(MusaCommand):
 
+    """AlbumArtCommand
+
+    Embed or extract albumart objects in supported audio files
+
+    """
+
     def __init__(self, script):
         name = 'albumart'
         description = 'Manage music file album art'
@@ -230,6 +236,7 @@ class CleanupCommand(MusaCommand):
             self.cleanup_tree(tree, dry_run=args.dry_run)
 
 
+
 class CompareCommand(MusaCommand):
 
     def __init__(self, script):
@@ -296,6 +303,37 @@ class CompareCommand(MusaCommand):
             self.script.exit(1, 'Requires two directory or file arguments')
 
 
+class CodecCommand(MusaCommand):
+
+    def __init__(self, script):
+        name = 'codecs'
+        description = 'Configure codec command stored to database'
+        mode_flags = []
+        MusaCommand.__init__(self, script, name, description, mode_flags)
+        self.parser.add_argument('-l', '--list', action='store_true', help='List configuration settings')
+        self.parser.add_argument('names', nargs='*', help='Sync targets to process')
+
+    def parse_args(self, args):
+        MusaCommand.parse_args(self, args, skip_targets=True)
+
+        if args.list:
+            for name, codec in self.script.config.codecs.items():
+                if args.names and name not in args.names:
+                    continue
+                self.message('%s' % name)
+                self.message('  Description: %s' % codec.description)
+                self.message('  Extensions:  %s' % ','.join(e.extension for e in codec.extensions))
+
+                if codec.encoders:
+                    self.message('  Encoders:')
+                    for encoder in codec.encoders:
+                        script.message('    %s' % encoder)
+
+                if codec.decoders:
+                    self.message('  Decoders:')
+                    for decoder in codec.decoders:
+                        script.message('    %s' % decoder)
+
 class ConfigCommand(MusaCommand):
 
     def __init__(self, script):
@@ -307,8 +345,6 @@ class ConfigCommand(MusaCommand):
         self.parser.add_argument('-t', '--threads', type=int, help='Number of threads to use')
         self.parser.add_argument('-c', '--default-codec', help='Default codec to use')
         self.parser.add_argument('-l', '--list', action='store_true', help='List configuration settings')
-        self.parser.add_argument('-o', '--codecs', action='store_true', help='Manipulate codec settings')
-        self.parser.add_argument('-s', '--sync', action='store_true', help='Manipulate sync settings')
         self.parser.add_argument('names', nargs='*', help='Sync targets to process')
 
     def list_config_items(self):
@@ -323,40 +359,11 @@ class ConfigCommand(MusaCommand):
                 self.script.exit(1, 'Error setting default codec: unknown codec %s' % args.default_codec)
             self.script.config.set('default_codec', args.default_codec)
 
-        elif args.threads:
+        if args.threads:
             self.script.config.set('threads', args.threads)
 
-        elif args.list:
-            if args.sync:
-                for name, settings in self.script.config.sync.items():
-                    if args.names and name not in args.names:
-                        continue
-                    self.message('%s' % name)
-                    self.message('  Type:        %s' % settings['type'])
-                    self.message('  Source:      %s' % settings['src'])
-                    self.message('  Destination: %s' % settings['dst'])
-                    self.message('  Flags:       %s' % settings['flags'])
-
-            elif args.codecs:
-                for name, codec in self.script.config.codecs.items():
-                    if args.names and name not in args.names:
-                        continue
-                    self.message('%s' % name)
-                    self.message('  Description: %s' % codec.description)
-                    self.message('  Extensions:  %s' % ','.join(e.extension for e in codec.extensions))
-
-                    if codec.encoders:
-                        self.message('  Encoders:')
-                        for encoder in codec.encoders:
-                            script.message('    %s' % encoder)
-
-                    if codec.decoders:
-                        self.message('  Decoders:')
-                        for decoder in codec.decoders:
-                            script.message('    %s' % decoder)
-
-            else:
-                self.list_config_items()
+        if args.list:
+            self.list_config_items()
 
 
 class ConvertCommand(MusaCommand):
@@ -477,6 +484,86 @@ class ConvertCommand(MusaCommand):
             self.copy_metadata(args.dry_run)
 
 
+class DatabaseCommand(MusaCommand):
+
+    def __init__(self, script):
+        name = 'db'
+        description = 'Manage music file database'
+        mode_flags = []
+        MusaCommand.__init__(self, script, name, description, mode_flags)
+
+        self.parser.add_argument('-l', '--list', action='store_true', help='List registered trees')
+        self.parser.add_argument('-t', '--list-tracks', action='store_true', help='List tracks in trees')
+        self.parser.add_argument('-m', '--match', help='Match files based on arguments')
+        self.parser.add_argument('-i', '--info', action='store_true', help='List tags for matched files')
+        self.parser.add_argument('-b', '--update', action='store_true', help='Update database')
+        self.parser.add_argument('-r', '--register', action='store_true', help='Register trees')
+        self.parser.add_argument('-u', '--unregister', action='store_true', help='Unregister trees')
+        self.parser.add_argument('trees', nargs='*', help='Tree paths to process')
+
+    def parse_args(self, args):
+        MusaCommand.parse_args(self, args, skip_targets=True)
+
+        if args.register:
+            for tree in args.trees:
+                try:
+                    self.script.config.register_tree(tree)
+                except MusaError,emsg:
+                    self.script.exit(1,emsg)
+
+        elif args.unregister:
+            for tree in args.trees:
+                self.script.config.unregister_tree(tree)
+            script.exit(0)
+
+        if args.trees:
+            trees = []
+            for tree in args.trees:
+                entry = self.script.config.get_tree(tree)
+                if entry is None:
+                    self.script.exit(1,'Path not registered: %s' % tree)
+                trees.append(entry)
+        else:
+            trees = self.script.config.trees
+
+        if args.list:
+            for tree in self.script.config.trees:
+                print tree
+
+        if args.list_tracks:
+            for tree in trees:
+                if not len(tree.tracks):
+                    self.script.log.debug('No tracks in tree %s' % tree.path)
+                    continue
+                self.script.log.debug('%s %d tracks' % (tree.path,len(tree.tracks)))
+                for track in tree.tracks:
+                    print track.relative_path
+
+        if args.update:
+            for tree in trees:
+                instance = Tree(tree.path)
+                instance.load()
+                tree.update(self.script.config.session,instance)
+
+        elif args.match:
+            for tree in trees:
+                tracks = tree.match(args.match)
+                if len(tracks):
+                    self.log.info('### %d matches in %s ###' % (len(tracks,), tree))
+                for track in tracks:
+                    self.script.message(track)
+                    if args.info:
+                        for t in track.tags:
+                            self.script.message('%16s %s' % (t.tag, t.value))
+
+        elif args.info:
+            for tree in trees:
+                summary = tree.summary()
+                script.message(tree)
+                for k in sorted(summary.keys()):
+                    self.script.message('%8s %s' % (k, summary[k]))
+
+
 class PlaylistCommand(MusaCommand):
 
     def __init__(self, script):
@@ -486,18 +573,53 @@ class PlaylistCommand(MusaCommand):
         PLAYLIST_DIRECTORY = os.path.expanduser('~/Music/Playlists')
         MusaCommand.__init__(self, script, name, description, mode_flags)
         self.parser.add_argument('-l', '--list', action='store_true', help='List playlist songs')
-        self.parser.add_argument('-d', '--directory', default=PLAYLIST_DIRECTORY, help='Playlist directory to process')
+        self.parser.add_argument('-b', '--update', action='store_true', help='Update registered playlist trees')
+        self.parser.add_argument('-r', '--register', action='store_true', help='Register playlist trees')
+        self.parser.add_argument('-u', '--unregister', action='store_true', help='Unregister playlist trees')
+        self.parser.add_argument('paths', nargs='*', help='Tree paths to process')
 
     def parse_args(self, args):
         MusaCommand.parse_args(self, args, skip_targets=True)
-        playlists = m3uPlaylistDirectory(args.directory)
+
+        if args.register:
+            for path in args.paths:
+                try:
+                    self.script.config.register_playlist_source(path)
+                except MusaError,emsg:
+                    script.exit(1,emsg)
+            script.exit(0)
+
+        elif args.unregister:
+            for path in args.paths:
+                try:
+                    self.script.config.unregister_playlist_source(path)
+                except MusaError,emsg:
+                    script.exit(1,emsg)
+            script.exit(0)
+
+        if args.paths:
+            sources = []
+            for path in args.paths:
+                entry = self.script.config.get_playlist_source(path)
+                if entry is None:
+                    self.script.exit(1,'Path not registered: %s' % path)
+                sources.append(entry)
+        else:
+            sources = self.script.config.playlist_sources
+
+        if args.update:
+            for source in sources:
+                m3u_directory = m3uPlaylistDirectory(source.path)
+                script.log.debug('Updating source: %s' % source.path)
+                source.update(self.script.config.session,m3u_directory)
 
         if args.list:
-            script.log.debug('Playlist folder: %s' % playlists.path)
-            for playlist in playlists:
-                print playlist
-                for path in playlist:
-                    print path
+            for source in sources:
+                script.log.debug('Playlist source: %s' % source.path)
+                for playlist in source.playlists:
+                    print playlist
+                    for path in playlist.tracks:
+                        print '  %s' % path
 
 
 class SyncCommand(MusaCommand):
@@ -508,6 +630,7 @@ class SyncCommand(MusaCommand):
         mode_flags = []
         MusaCommand.__init__(self, script, name, description, mode_flags)
         self.parser.add_argument('-d', '--directories', action='store_true', help='Sync directories, not configured targets')
+        self.parser.add_argument('-l', '--list', action='store_true',help='List configured sync targets')
         self.parser.add_argument('-r', '--rename', help='Directory sync target filesystem rename callback')
         self.parser.add_argument('-D', '--delete', action='store_true', help='Remove unknown files from target')
         self.parser.add_argument('-t', '--threads', type=int, help='Number of sync threads to use')
@@ -516,6 +639,17 @@ class SyncCommand(MusaCommand):
     def parse_args(self, args):
         MusaCommand.parse_args(self, args, skip_targets=True)
         self.manager = SyncManager(threads=args.threads, delete=args.delete)
+
+        if args.list:
+            for name, settings in self.script.config.sync.items():
+                if args.paths and name not in args.paths:
+                    continue
+                self.message('%s' % name)
+                self.message('  Type:        %s' % settings['type'])
+                self.message('  Source:      %s' % settings['src'])
+                self.message('  Destination: %s' % settings['dst'])
+                self.message('  Flags:       %s' % settings['flags'])
+            script.exit(0)
 
         if args.directories:
             if len([d for d in args.paths if os.path.isdir(d)]) != 2:
@@ -682,87 +816,17 @@ class TagsCommand(MusaCommand):
                 self.message(self.xmltree.tostring())
 
 
-class TreeCommand(MusaCommand):
-
-    def __init__(self, script):
-        name = 'tree'
-        description = 'Manage music file trees'
-        mode_flags = []
-        MusaCommand.__init__(self, script, name, description, mode_flags)
-
-        self.parser.add_argument('-l', '--list', action='store_true', help='List registered trees')
-        self.parser.add_argument('-m', '--match', help='Match files based on arguments')
-        self.parser.add_argument('-i', '--info', action='store_true', help='List tags for matched files')
-        self.parser.add_argument('-b', '--update', action='store_true', help='Update database')
-        self.parser.add_argument('-r', '--register', action='store_true', help='Register trees')
-        self.parser.add_argument('-u', '--unregister', action='store_true', help='Unregister trees')
-        self.parser.add_argument('trees', nargs='*', help='Paths to process')
-
-    def parse_args(self, args):
-        MusaCommand.parse_args(self, args, skip_targets=True)
-
-        if args.register:
-            for tree in args.trees:
-                try:
-                    self.script.config.register_tree(tree)
-                except MusaError,emsg:
-                    self.script.exit(1,emsg)
-
-        elif args.unregister:
-            for tree in args.trees:
-                self.script.config.unregister_tree(tree)
-            script.exit(0)
-
-        if args.trees:
-            trees = []
-            for tree in args.trees:
-                entry = self.script.config.get_tree(tree)
-                if entry is None:
-                    self.script.exit(1,'Path not registered: %s' % tree)
-                trees.append(entry)
-        else:
-            print 'Default trees'
-            trees = self.script.config.trees
-
-        if args.list:
-            for tree in self.script.config.trees:
-                print tree
-
-        if args.update:
-            for tree in trees:
-                instance = Tree(tree.path)
-                instance.load()
-                tree.update(self.script.config.session,instance)
-
-        elif args.match:
-            for tree in trees:
-                tracks = tree.match(args.match)
-                if len(tracks):
-                    self.log.info('### %d matches in %s ###' % (len(tracks,), tree))
-                for track in tracks:
-                    self.script.message(track)
-                    if args.info:
-                        for t in track.tags:
-                            self.script.message('%16s %s' % (t.tag, t.value))
-
-        elif args.info:
-            for tree in trees:
-                summary = tree.summary()
-                script.message(tree)
-                for k in sorted(summary.keys()):
-                    self.script.message('%8s %s' % (k, summary[k]))
-
-
 script = MusaScript()
 AlbumArtCommand(script)
 CleanupCommand(script)
+CodecCommand(script)
 CompareCommand(script)
 ConfigCommand(script)
 ConvertCommand(script)
 PlaylistCommand(script)
 SyncCommand(script)
 TagsCommand(script)
-TreeCommand(script)
+DatabaseCommand(script)
 args = script.parse_args()
 
 command = script.commands[args.command]

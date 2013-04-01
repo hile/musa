@@ -4,7 +4,6 @@ import os,codecs,logging
 
 from musa import normalized,MusaError
 from musa.log import MusaLogger
-from musa.config import MusaConfigDB
 from musa.formats import MusaFileFormat,path_string,match_codec,match_metadata
 
 class PlaylistError(Exception):
@@ -14,8 +13,8 @@ class PlaylistError(Exception):
 class Playlist(list):
     def __init__(self,path,parent,unique=True):
         self.log =  MusaLogger('musa').default_stream
-        self.path = normalized(os.path.realpath(path))
         self.parent = parent
+        self.path = normalized(os.path.realpath(path))
         self.filename = os.path.basename(self.path)
         self.unique = unique
 
@@ -45,6 +44,18 @@ class Playlist(list):
             except ValueError:
                 raise PlaylistError('Invalid position: %s' % position)
             self.insert(position,path)
+
+    @property
+    def directory(self):
+        return os.path.dirname(self.path)
+
+    @property
+    def extension(self):
+        return os.path.splitext(os.path.basename(self.path))[1][1:]
+
+    @property
+    def name(self):
+        return os.path.splitext(os.path.basename(self.path))[0]
 
     @property
     def relative_path(self):
@@ -99,8 +110,6 @@ class m3uPlaylist(Playlist):
 
                 self.append(filepath)
 
-        self.log.debug('%s: loaded %d entries' % (self.path,list.__len__(self)))
-
     def write(self):
         pl_dir = os.path.dirname(self.path)
         if not os.path.isdir(pl_dir):
@@ -133,9 +142,8 @@ class m3uPlaylist(Playlist):
             raise PlaylistError('Error removing playlist %s: %s' % (self.path,emsg))
 
 class m3uPlaylistDirectory(list):
-    def __init__(self,path,parent=None,config=None):
+    def __init__(self,path,parent=None):
         self.log = MusaLogger('musa').default_stream
-        self.config = MusaConfigDB()
         self.parent = parent
         self.path = path
 
