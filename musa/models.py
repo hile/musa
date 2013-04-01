@@ -6,21 +6,24 @@ SQLAlchemy models for musa configuration and music tree databases
 """
 
 import os
+import base64
 from datetime import datetime,timedelta
 
 from sqlite3 import Connection as SQLite3Connection
-from sqlalchemy import create_engine, event, Column, ForeignKey, Integer, Boolean, Date
+from sqlalchemy import create_engine, event, Column, ForeignKey, Integer, Boolean, String, Date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.types import TypeDecorator, Unicode
 from sqlalchemy.orm import sessionmaker, relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
 from musa import MUSA_USER_DIR, MusaError
+from musa.log import MusaLogger
 
 DEFAULT_DATABASE = os.path.join(MUSA_USER_DIR, 'musa.sqlite')
 
 Base = declarative_base()
 
+logger = MusaLogger('database').default_stream
 
 class SafeUnicode(TypeDecorator):
 
@@ -37,6 +40,26 @@ class SafeUnicode(TypeDecorator):
             value = value.decode('utf-8')
         return value
 
+
+class Base64Field(TypeDecorator):
+
+    """Base64Field
+
+    Column encoded as base64 to a string field in database
+
+    """
+
+    impl = String
+
+    def process_bind_param(self,value, dialect):
+        if value is None:
+            return value
+        return base64.encode(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        return base64.decode(value)
 
 class Setting(Base):
 
@@ -301,26 +324,39 @@ class Tree(Base):
     def update(self,session,tree):
         added,updated,deleted = 0,0,0
 
-        existing_paths = [track.path for track in self.tracks]
         for track in tree:
-            if track.path not in existing_paths:
+            album_mtime = os.stat(track.directory).st_mtime
+
+            db_album = session.query(Album).filter(Album.tree==self,Album.directory==track.directory).first()
+            if db_album is None:
+                logger.debug('Create album: %s' % track.directory)
+                db_album = Album(tree=self,directory=track.directory, mtime=album_mtime)
+                session.add(db_album)
+            else:
+                if db_album.mtime!=album_mtime:
+                    db_album.mtime = album_mtime
+
+            db_track = session.query(Track).filter(
+                Track.directory==track.path.directory,
+                Track.filename==track.path.filename
+            ).first()
+
+            if db_track is None:
                 db_track = Track(
                     tree=self,
+                    album=db_album,
                     directory=track.directory,
                     filename=track.filename,
                     extension=track.extension,
                     mtime=track.mtime,
                     deleted=False,
                 )
-                db_track.update_tags(session,track.tags)
+                db_track.update(session,track)
                 added +=1
 
-            else:
-                db_track = session.query(Track).filter(Track.directory == track.path.directory,Track.filename == track.path.filename).first()
-                if db_track:
-                    if track.mtime != db_track.mtime:
-                        db_track.update_tags(session,track.tags)
-                        updated += 1
+            elif db_track.mtime != track.mtime:
+                db_track.update(session,track)
+                updated += 1
 
             session.commit()
 
@@ -334,7 +370,7 @@ class Tree(Base):
         return added,updated,deleted
 
     def match(self,match):
-        print 'Matching %s: %s' % (self,match)
+        logger.debug('Matching %s: %s' % (self,match))
         return []
 
 
@@ -351,6 +387,7 @@ class Album(Base):
     id = Column(Integer, primary_key=True)
 
     directory = Column(SafeUnicode)
+    mtime = Column(Integer)
     tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
     tree = relationship('Tree', single_parent=False,
         backref=backref('albums', order_by=directory, cascade='all, delete, delete-orphan')
@@ -373,6 +410,28 @@ class Album(Base):
     @property
     def exists(self):
         return os.path.isdir(self.directory)
+
+class AlbumArt(Base):
+
+    """Album
+
+    Albumart files for music albums in tree database.
+
+    """
+
+    __tablename__ = 'albumarts'
+
+    id = Column(Integer, primary_key=True)
+    mtime = Column(Integer)
+    albumart = Column(Base64Field)
+
+    album_id = Column(Integer, ForeignKey('albums.id'), nullable=True)
+    album = relationship('Album', single_parent=False,
+        backref=backref('albumarts', cascade='all, delete, delete-orphan')
+    )
+
+    def __repr__(self):
+        return 'Albumart for %s' % self.album.path
 
 
 class Track(Base):
@@ -421,11 +480,13 @@ class Track(Base):
     def exists(self):
         return os.path.isfile(self.path)
 
-    def update_tags(self,session,tags):
+    def update(self,session,track):
+        logger.debug('update track %s' % track.path)
+        self.mtime = track.mtime
         for tag in session.query(Tag).filter(Tag.track == self):
             session.delete(tag)
 
-        for tag,value in tags.items():
+        for tag,value in track.tags.items():
             session.add(Tag(track=self,tag=tag,value=value))
 
 class Tag(Base):
@@ -585,7 +646,7 @@ class MusaDB(object):
             path = unicode(path,'utf-8')
 
         existing = self.query(Tree).filter(Tree.path==path).first()
-        if not existing:
+        if existing:
             raise MusaError('Tree was already registered: %s' % path)
 
         tt = self.get_tree_type(tree_type)

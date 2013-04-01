@@ -78,6 +78,7 @@ class TagParser(dict):
         for tag in fields:
             if tag not in self.entry.keys():
                 continue
+            self.log.debug('%s: remove tag %s' % (self.path,item))
             del self.entry[tag]
             self.modified = True
 

@@ -9,6 +9,8 @@ from musa.log import MusaLogger
 from musa import normalized,MusaError,CommandPathCache
 from musa.metadata import Metadata
 
+logger = MusaLogger('formats').default_stream
+
 TAG_PARSERS = {
     'aac':      'musa.tags.formats.aac.aac',
     'mp3':      'musa.tags.formats.mp3.mp3',
@@ -96,7 +98,7 @@ class path_string(unicode):
 class MusaFileFormat(object):
     def __init__(self,path):
         self.config = MusaConfigDB()
-        self.log =  MusaLogger('musa').default_stream
+        self.log =  MusaLogger('formats').default_stream
         self.path = path_string(path)
         self.codec = None
         self.description = None
