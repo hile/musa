@@ -115,6 +115,47 @@ class Codec(Base):
     def __repr__(self):
         return self.name
 
+    def register_extension(self,session,extension):
+        existing = session.query(Extension).filter(Extension.extension==extension).first()
+        if existing:
+            raise MusaError('Extension already registered: %s' % extension)
+        session.add(Extension(codec=self,extension=extension))
+        session.commit()
+
+    def unregister_extension(self,session,extension):
+        existing = session.query(Extension).filter(Extension.extension==extension).first()
+        if not existing:
+            raise MusaError('Extension was not registered: %s' % extension)
+        session.delete(existing)
+        session.commit()
+
+    def register_decoder(self,session,command):
+        existing = session.query(Decoder).filter(Decoder.codec==self,Decoder.command==command).first()
+        if existing:
+            raise MusaError('Decoder already registered: %s' % command)
+        session.add(Decoder(codec=self,command=command))
+        session.commit()
+
+    def unregister_decoder(self,session,command):
+        existing = session.query(Decoder).filter(Decoder.codec==self,Decoder.extension==extension).first()
+        if not existing:
+            raise MusaError('Decoder was not registered: %s' % command)
+        session.delete(existing)
+        session.commit()
+
+    def register_encoder(self,session,command):
+        existing = session.query(Encoder).filter(Encoder.codec==self,Encoder.command==command).first()
+        if existing:
+            raise MusaError('Encoder already registered: %s' % command)
+        session.add(Encoder(codec=self,command=command))
+        session.commit()
+
+    def unregister_encoder(self,session,command):
+        existing = session.query(Encoder).filter(Encoder.codec==self,Encoder.extension==extension).first()
+        if not existing:
+            raise MusaError('Encoder was not registered: %s' % command)
+        session.delete(existing)
+        session.commit()
 
 class Extension(Base):
 
@@ -327,45 +368,46 @@ class Tree(Base):
     def update(self,session,tree,update_checksum=True):
         added,updated,deleted = 0,0,0
 
-        for track in tree:
-            album_mtime = os.stat(track.directory).st_mtime
+        for album in tree.as_albums:
 
-            db_album = session.query(Album).filter(Album.tree==self,Album.directory==track.directory).first()
+            db_album = session.query(Album).filter(Album.tree==self,Album.directory==album.path).first()
             if db_album is None:
-                logger.debug('Create album: %s' % track.directory)
-                db_album = Album(tree=self,directory=track.directory, mtime=album_mtime)
+                db_album = Album(tree=self,directory=album.path, mtime=album.mtime)
                 session.add(db_album)
-            elif db_album.mtime!=album_mtime:
-                    db_album.mtime = album_mtime
+
+            elif db_album.mtime!=album.mtime:
+                db_album.mtime = album.mtime
+
             else:
-                logger.debug('Not modified: %s' % track.directory)
+                logger.debug('Not modified: %s' % album.path)
                 continue
 
-            db_track = session.query(Track).filter(
-                Track.directory==track.path.directory,
-                Track.filename==track.path.filename
-            ).first()
+            for track in album:
+                db_track = session.query(Track).filter(
+                    Track.directory==track.path.directory,
+                    Track.filename==track.path.filename
+                ).first()
 
-            if db_track is None:
-                db_track = Track(
-                    tree=self,
-                    album=db_album,
-                    directory=track.directory,
-                    filename=track.filename,
-                    extension=track.extension,
-                    mtime=track.mtime,
-                    deleted=False,
-                )
-                db_track.update(session,track)
-                added +=1
+                if db_track is None:
+                    db_track = Track(
+                        tree=self,
+                        album=db_album,
+                        directory=track.directory,
+                        filename=track.filename,
+                        extension=track.extension,
+                        mtime=track.mtime,
+                        deleted=False,
+                    )
+                    db_track.update(session,track)
+                    added +=1
 
-            elif db_track.mtime != track.mtime:
-                db_track.update(session,track)
-                updated += 1
+                elif db_track.mtime != track.mtime:
+                    db_track.update(session,track)
+                    updated += 1
 
-            elif not db_track.checksum and update_checksum:
-                db_track.update_checksum(session)
-                updated += 1
+                elif not db_track.checksum and update_checksum:
+                    db_track.update_checksum(session)
+                    updated += 1
 
             session.commit()
 
