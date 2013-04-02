@@ -252,6 +252,19 @@ class Album(IterableTrackFolder):
                     metadata.__class__(os.path.join(self.path, f))
                 )
 
+
+    @property
+    def mtime(self):
+        return os.stat(self.path).st_mtime
+
+    @property
+    def ctime(self):
+        return os.stat(self.path).st_ctime
+
+    @property
+    def atime(self):
+        return os.stat(self.path).st_atime
+
     @property
     def metadata(self):
         if not self.has_been_iterated:

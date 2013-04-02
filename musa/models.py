@@ -368,7 +368,7 @@ class Tree(Base):
     def update(self,session,tree,update_checksum=True):
         added,updated,deleted = 0,0,0
 
-        for album in tree.as_albums:
+        for album in tree.as_albums():
 
             db_album = session.query(Album).filter(Album.tree==self,Album.directory==album.path).first()
             if db_album is None:
