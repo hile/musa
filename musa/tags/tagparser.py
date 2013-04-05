@@ -20,6 +20,7 @@ from musa.tags.albumart import AlbumArt, AlbumArtError
 
 __all__ = ['aac', 'flac', 'mp3', 'vorbis']
 
+# Format parsers for printing out various year tag formats supported internally
 YEAR_FORMATTERS = [
     lambda x: unicode('%s'% int(x),'utf-8'),
     lambda x: unicode('%s'% datetime.strptime(x,'%Y-%m-%d').strftime('%Y'),'utf-8'),
@@ -120,6 +121,9 @@ class TagParser(dict):
         return field
 
     def __flatten_tag__(self, tag):
+        """
+        Flatten and mangle tag values to standard formats
+        """
         try:
             value = self[tag]
         except KeyError:
@@ -198,6 +202,12 @@ class TagParser(dict):
         """
         raise NotImplementedError('Must implement set_tag in child')
 
+    def get_raw_tags(self):
+        """
+        Get internal presentation of tags
+        """
+        return self.entry.items()
+
     def get_unknown_tags(self):
         """
         Must be implemented in child if needed: return empty list here
@@ -264,12 +274,21 @@ class TagParser(dict):
         return [self[k] for k, v in self.keys()]
 
     def as_dict(self):
+        """
+        Return tags as dictionary
+        """
         return dict(self.items())
 
     def as_xml(self):
+        """
+        Return tags formatted as XML
+        """
         return XMLTags(self.as_dict())
 
     def to_json(self,indent=2):
+        """
+        Return tags formatted as json
+        """
         stat = os.stat(self.path)
         return json.dumps(
             {

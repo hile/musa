@@ -254,7 +254,7 @@ class MusaCommand(object):
             try:
                 return track.tags
             except TreeError,emsg:
-                self.log.debug('Error parsing tags from %s: %s' % (track,path,emsg))
+                self.log.debug('Error parsing tags from %s: %s' % (track.path,emsg))
                 return None
         return None
 

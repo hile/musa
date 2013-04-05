@@ -707,17 +707,25 @@ class TagsCommand(MusaCommand):
 
         self.xmltree = XMLTrackTree()
 
-    def print_tags(self,track,print_path=False,path_format=None,xml=False,json=False,show_tags=None):
+    def print_tags(self,track,print_path=False,path_format=None,raw_tags=False,xml=False,json=False,show_tags=[]):
+
         path_format = path_format is not None and path_format or '# %s'
 
         tags = self.get_tags(track)
         if tags is None:
             return
 
-        if xml:
+        elif xml:
             self.xmltree.append(tags.as_xml())
         elif json:
             self.message(tags.to_json())
+        elif raw_tags:
+            if print_path:
+                self.message(path_format % track.path)
+            for k, v in tags.get_raw_tags():
+                if show_tags and k not in show_tags:
+                    continue
+                self.message('%s %s' % (k, v))
         else:
             if print_path:
                 self.message(path_format % track.path)
@@ -727,9 +735,13 @@ class TagsCommand(MusaCommand):
                 self.message('%s %s' % (k, v))
 
     def edit_tags(self, track):
+        """
+        Edit tags with external editor command
+        """
         track_tags = self.get_tags(track)
         if track_tags is None:
             return None
+
         new_tags = self.script.edit_tags(track_tags.as_dict())
         if new_tags != track_tags.as_dict():
             try:
@@ -756,6 +768,9 @@ class TagsCommand(MusaCommand):
             self.script.exit(1, 'Error removing tags from %s: %s' % (track.path, emsg))
 
     def clear_tags(self, track):
+        """
+        Clear all tags from track
+        """
         track_tags = self.get_tags(track)
         if track_tags is None:
             return None
@@ -843,6 +858,7 @@ class TagsCommand(MusaCommand):
                 self.print_tags,
                 print_path=args.print_path,
                 path_format=args.path_format,
+                raw_tags=args.print_raw,
                 xml=args.xml,
                 json=args.json,
                 show_tags=args.get,
