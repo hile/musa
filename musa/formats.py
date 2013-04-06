@@ -27,15 +27,15 @@ db = MusaConfigDB()
 
 def filter_available_command_list(commands):
     available = []
-    for command in commands:
+    for cmd in commands:
         try:
-            executable = command.split(' ',1)[0]
+            executable = cmd.command.split(' ',1)[0]
         except IndexError:
-            executable = command
+            executable = cmd.command
             pass
         if PATH_CACHE.which(executable) is None:
             continue
-        available.append(command)
+        available.append(cmd.command)
     return available
 
 def match_codec(path):
@@ -45,7 +45,7 @@ def match_codec(path):
         ext = path
 
     if ext in db.codecs.keys():
-        return ext
+        return db.codecs[ext]
 
     for codec in db.codecs.values():
         if ext in [e.extension for e in codec.extensions]:
@@ -172,18 +172,12 @@ class MusaFileFormat(object):
             return None
 
     def get_available_encoders(self):
-        if self.codec is None:
+        if self.codec is None or not self.codec.encoders:
             return []
-        config = self.db.codecs[self.codec]
-        if not 'encoders' in config:
-            return []
-        return filter_available_command_list(config['encoders'])
+        return filter_available_command_list(self.codec.encoders)
 
     def get_available_decoders(self):
-        if self.codec is None:
+        if self.codec is None or not self.codec.decoders:
             return []
-        config = self.db.codecs[self.codec]
-        if not 'decoders' in config:
-            return []
-        return filter_available_command_list(config['decoders'])
+        return filter_available_command_list(self.codec.decoders)
 

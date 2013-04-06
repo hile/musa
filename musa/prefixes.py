@@ -110,17 +110,17 @@ class TreePrefixes(list):
             self.log = MusaLogger('musa').default_stream
             self.db = MusaConfigDB()
             for path in DEFAULT_PATHS:
-                for codec, defaults in self.db.codecs.items():
-                    prefix_path = os.path.join(path, codec)
-                    prefix = MusicTreePrefix(prefix_path, defaults.extensions)
+                for name,codec in self.db.codecs.items():
+                    prefix_path = os.path.join(path, name)
+                    prefix = MusicTreePrefix(prefix_path, [codec.name] + codec.extensions)
                     self.register_prefix(prefix)
 
-                if 'aac' in self.db.codecs.keys():
+                if 'm4a' in self.db.codecs.keys():
                     prefix_path = os.path.join(path, 'm4a')
-                    prefix = MusicTreePrefix(prefix_path, self.db.codecs.extensions('aac'))
+                    prefix = MusicTreePrefix(prefix_path, self.db.codecs.extensions('m4a'))
                     self.register_prefix(prefix)
 
-            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC, self.db.codecs.extensions('aac'))
+            itunes_prefix = MusicTreePrefix(ITUNES_MUSIC, self.db.codecs.extensions('m4a'))
             self.register_prefix(itunes_prefix)
             self.sort(lambda x, y: cmp(x.path, y.path))
             self.load_user_config()

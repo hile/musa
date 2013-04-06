@@ -180,14 +180,14 @@ class CodecConfiguration(dict):
 
     def load(self):
         for codec in self.db.query(Codec).all():
-            self[codec.name] = codec
+            self[str(codec.name)] = codec
 
         for name, settings in DEFAULT_CODECS.items():
             if name  in self.keys():
                 continue
             self.log.debug('Import default codec: %s' % name)
             codec = self.register_codec(name,**settings)
-            self[codec.name] = codec
+            self[str(codec.name)] = codec
 
     def add_decoder(self,codec,command,priority=None):
         codec = self.db.query(Codec).filter(Codec.name==name)
@@ -227,7 +227,7 @@ class CodecConfiguration(dict):
 
     def extensions(self,codec):
         if codec in self.keys():
-            return [e.extension for e in self[codec].extensions]
+            return [codec] + [e.extension for e in self[codec].extensions]
         return []
 
     def keys(self):

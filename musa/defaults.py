@@ -45,7 +45,7 @@ DEFAULT_CODECS = {
     ],
   },
 
-  'aac': {
+  'm4a': {
     'description': 'Advanced Audio Coding',
     'extensions': ['m4a','aac', 'mp4'],
     'encoders': [

@@ -377,9 +377,9 @@ class ConvertCommand(MusaCommand):
 
         self.parser.add_argument('-t', '--threads', type=int, help='Number of transcoder threads to use')
         self.parser.add_argument('-m', '--metadata', action='store_true', help='Copy album metadata')
-        self.parser.add_argument('-y', '--dry-run', action='store_true',
-                                 help='Only show which tracks would have been transcoded')
+        self.parser.add_argument('-y', '--dry-run', action='store_true', help='Only show which tracks would have been transcoded')
         self.parser.add_argument('-f', '--overwrite', action='store_true', help='Overwrite existing target files')
+        self.parser.add_argument('-p', '--prefix', help='Target file relative path prefix')
         self.parser.add_argument('-c', '--codec', help='Destination file format for tree mode')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
 
@@ -405,7 +405,7 @@ class ConvertCommand(MusaCommand):
         except TranscoderError, emsg:
             self.script.exit(1, emsg)
 
-    def parse_target_relative_path(self,src,dst=None,codec=None):
+    def parse_target_relative_path(self,src,dst=None,prefix_path=None,codec=None):
         if not isinstance(src, Track):
             self.script.exit(1, 'BUG in parse_target_relative_path: src must be Track object')
 
@@ -422,23 +422,26 @@ class ConvertCommand(MusaCommand):
 
         if prefix is None:
             raise MusaScriptError('Could not resolve target path')
+        if prefix_path is None:
+            print 'Using default prefix path from %s' % prefix
+            prefix_path = prefix.path
 
-        codec = prefix.extensions[0]
-        dst_relpath = '%s.%s' % (os.path.splitext(src.relative_path)[0], codec)
-        return Track(os.path.join(prefix.path, dst_relpath))
+        extension = prefix.extensions[0]
+        dst_relpath = '%s.%s' % (os.path.splitext(src.relative_path)[0], extension)
+        return Track(os.path.join(prefix_path, dst_relpath))
 
-    def transcode(self,src,dst=None,codec=None):
+    def transcode(self, src, dst=None, prefix_path=None, codec=None):
         if isinstance(src, Tree) and isinstance(dst, Tree):
             for track in src:
-                dst_track = self.parse_target_relative_path(track, dst, codec)
+                dst_track = self.parse_target_relative_path(track, dst, prefix_path,codec)
                 self.enqueue(track, dst_track)
 
         elif isinstance(src, Track) and (isinstance(dst, Tree) or isinstance(dst, Track)):
-            dst_track = self.parse_target_relative_path(src, dst, codec)
+            dst_track = self.parse_target_relative_path(src, dst, prefix_path, codec)
             self.enqueue(src, dst_track)
 
         elif isinstance(src, Track) and dst is None:
-            dst_track = self.parse_target_relative_path(src, codec=codec)
+            dst_track = self.parse_target_relative_path(src, prefix_path=prefix_path, codec=codec)
             self.enqueue(src, dst_track)
 
         else:
@@ -466,15 +469,15 @@ class ConvertCommand(MusaCommand):
         if args.codec is not None:
             for tree in trees:
                 for track in tree:
-                    self.transcode(track, codec=args.codec)
+                    self.transcode(track, prefix_path=args.prefix, codec=args.codec)
             for track in tracks:
-                self.transcode(track, codec=args.codec)
+                self.transcode(track, prefix_path=args.prefix, codec=args.codec)
 
         elif len(trees) == 2:
-            self.transcode(*trees)
+            self.transcode(*trees,prefix_path=args.prefix)
 
         elif len(tracks) == 2:
-            self.transcode(*tracks)
+            self.transcode(*tracks,prefix_path=args.prefix)
 
         if len(self.transcoder):
             self.transcoder.run()
