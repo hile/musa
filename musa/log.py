@@ -84,9 +84,10 @@ class MusaLogger(object):
             handler.setFormatter(logging.Formatter(logformat,timeformat))
             logger.addHandler(handler)
             self[name] = logger
+            return logger
 
-        def register_file_handler(self,name,directory,
-                         logformat=None,
+        def register_file_handler(self, name, directory,
+                         logformat=None, timeformat=None,
                          maxBytes=DEFAULT_LOGSIZE_LIMIT,
                          backupCount=DEFAULT_LOG_BACKUPS):
             """
@@ -97,9 +98,14 @@ class MusaLogger(object):
 
             if logformat is None:
                 logformat = DEFAULT_LOGFILEFORMAT
+            if timeformat is None:
+                timeformat = DEFAULT_TIME_FORMAT
 
-            if name in [l.name for l in logging.Logger.manager.loggerDict.values()]:
-                return
+            for logging_manager in logging.Logger.manager.loggerDict.values():
+                if hasattr(logging_manager,'name') and logging_manager.name==name:
+                    self[name] = logging.getLogger(name)
+                    return
+
             if not os.path.isdir(directory):
                 try:
                     os.makedirs(directory)
@@ -114,10 +120,11 @@ class MusaLogger(object):
                 maxBytes=maxBytes,
                 backupCount=backupCount
             )
-            handler.setFormatter(logging.Formatter(logformat,self.timeformat))
+            handler.setFormatter(logging.Formatter(logformat,timeformat))
             logger.addHandler(handler)
             logger.setLevel(self.loglevel)
             self[name] = logger
+            return logger
 
         def set_level(self,value):
             if not hasattr(logging,value):

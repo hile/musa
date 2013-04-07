@@ -649,7 +649,7 @@ class SyncCommand(MusaCommand):
 
     def parse_args(self, args):
         MusaCommand.parse_args(self, args, skip_targets=True)
-        self.manager = SyncManager(threads=args.threads, delete=args.delete)
+        self.manager = SyncManager(threads=args.threads, delete=args.delete,debug=args.debug)
 
         if args.list:
             for name, settings in self.script.db.sync.items():

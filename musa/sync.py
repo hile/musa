@@ -5,14 +5,19 @@ Parsing of syncing options
 
 """
 
-import os,shutil
+import os
+import shutil
+import time
 
 from subprocess import Popen,PIPE
 
 from musa.config import MusaConfigDB
+from musa.defaults import MUSA_USER_DIR
 from musa.log import MusaLogger
 from musa.cli import MusaThread,MusaThreadManager
 from musa.tree import Tree,Track,TreeError
+
+SYNC_LOG = os.path.join(MUSA_USER_DIR,'sync.log')
 
 RSYNC_DELETE_FLAGS = (
     '--del', '--delete', '--delete-before', '--delete-during',
@@ -47,8 +52,10 @@ RENAME_CALLBACKS = {
 }
 
 class SyncThread(MusaThread):
-    def __init__(self,index,src,dst,delete=False):
+    def __init__(self,manager,index,src,dst,delete=False):
         MusaThread.__init__(self,'sync')
+        self.manager = manager
+        self.log = self.manager.log
         self.index = index
         self.delete = delete
 
@@ -74,8 +81,8 @@ class SyncThread(MusaThread):
         raise NotImplementedError('Must be implemented in inheriting class')
 
 class FilesystemSyncThread(SyncThread):
-    def __init__(self,index,src,dst,delete=False,rename=None):
-        SyncThread.__init__(self,index,src,dst,delete)
+    def __init__(self,manager,index,src,dst,delete=False,rename=None):
+        SyncThread.__init__(self,manager,index,src,dst,delete)
 
         if rename is not None:
             try:
@@ -109,7 +116,7 @@ class FilesystemSyncThread(SyncThread):
 
             if not os.path.isdir(dst_album_path):
                 try:
-                    self.log.debug('Create directory: %s' % dst_album_path)
+                    self.log.info('Create directory: %s' % dst_album_path)
                     os.makedirs(dst_album_path)
                 except OSError,(ecode,emsg):
                     self.log.info('Error creating directory %s: %s' % (dst_album_path,emsg))
@@ -124,10 +131,10 @@ class FilesystemSyncThread(SyncThread):
 
                 modified = False
                 if not os.path.isfile(dst_track.path):
-                    self.log.debug('%6d new: %s' % (i,dst_track.path))
+                    self.log.info('%6d new: %s' % (i,dst_track.path))
                     modified = True
                 elif track.size != dst_track.size:
-                    self.log.debug('%6d modified: %s' % (i,dst_track.path))
+                    self.log.info('%6d modified: %s' % (i,dst_track.path))
                     modified = True
 
                 if modified:
@@ -138,8 +145,8 @@ class FilesystemSyncThread(SyncThread):
                         continue
 
 class RsyncThread(SyncThread):
-    def __init__(self,index,src,dst,flags,delete=False):
-        SyncThread.__init__(self,index,src,dst,delete)
+    def __init__(self,manager,index,src,dst,flags,delete=False):
+        SyncThread.__init__(self,manager,index,src,dst,delete)
         if isinstance(flags,basestring):
             flags = flags.split()
         if delete and not RSYNC_DELETE_FLAGS.intersection(set(flags)):
@@ -148,15 +155,38 @@ class RsyncThread(SyncThread):
 
     def run(self):
         command = ['rsync','-av'] + self.flags + ['%s/' % self.src, '%s/' % self.dst]
-        self.log.debug('Running: %s' % ' '.join(command))
-        p = Popen(command,stdin=PIPE,stdout=PIPE,stderr=PIPE)
-        p.wait()
-        self.log.debug('Finished: %s' % ' '.join(command))
+        try:
+            self.log.info('Running: %s' % ' '.join(command))
+
+            p = Popen(command,stdin=PIPE,stdout=PIPE,stderr=PIPE)
+            rval = None
+            while rval is None:
+                while True:
+                    l = p.stdout.readline()
+                    if l == '': break
+                    self.log.info(l.rstrip())
+                time.sleep(0.2)
+                rval = p.poll()
+
+            if rval != 0:
+                self.log.info('Error running command %s: %s' % (self,p.stderr.read()))
+
+        except KeyboardInterrupt:
+            self.log.debug('Rsync interrupted')
+            raise KeyboardInterrupt
+
+        self.log.info('Finished: %s' % ' '.join(command))
 
 class SyncManager(MusaThreadManager):
-    def __init__(self,threads=None,delete=False):
+    def __init__(self,threads=None,delete=False,debug=False):
         MusaThreadManager.__init__(self,'sync',threads)
         self.delete = delete
+        self.debug = debug
+        if not debug:
+            self.log = MusaLogger('sync').register_file_handler('sync',MUSA_USER_DIR)
+            MusaLogger('sync').set_level('INFO')
+        else:
+            self.log = MusaLogger('sync').default_stream
 
     def parse_target(self,name):
         try:
@@ -176,9 +206,9 @@ class SyncManager(MusaThreadManager):
     def get_entry_handler(self,index,config):
         sync_type = config.pop('type',None)
         if sync_type=='rsync':
-            return RsyncThread(index=index,**config)
+            return RsyncThread(manager=self,index=index,**config)
         elif sync_type=='directory':
-            return FilesystemSyncThread(index=index,**config)
+            return FilesystemSyncThread(manager=self,index=index,**config)
         else:
             raise SyncError('BUG: invalid sync type in thread config')
 
