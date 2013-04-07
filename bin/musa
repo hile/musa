@@ -718,10 +718,12 @@ class TagsCommand(MusaCommand):
         if tags is None:
             return
 
-        elif xml:
+        if xml:
             self.xmltree.append(tags.as_xml())
+
         elif json:
             self.message(tags.to_json())
+
         elif raw_tags:
             if print_path:
                 self.message(path_format % track.path)

@@ -14,7 +14,7 @@ from musa.metadata import Metadata
 logger = MusaLogger('formats').default_stream
 
 TAG_PARSERS = {
-    'aac':      'musa.tags.formats.aac.aac',
+    'm4a':      'musa.tags.formats.aac.aac',
     'mp3':      'musa.tags.formats.mp3.mp3',
     'flac':     'musa.tags.formats.flac.flac',
     'vorbis':   'musa.tags.formats.vorbis.vorbis',
