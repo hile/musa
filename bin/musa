@@ -509,58 +509,52 @@ class DatabaseCommand(MusaCommand):
         MusaCommand.parse_args(self, args, skip_targets=True)
 
         if args.register:
-            for tree in args.trees:
+            for dbt in args.trees:
                 try:
-                    self.script.db.register_tree(tree)
+                    self.script.db.register_tree(dbt)
                 except MusaError,emsg:
                     self.script.exit(1,emsg)
 
         elif args.unregister:
-            for tree in args.trees:
-                self.script.db.unregister_tree(tree)
+            for dbt in args.trees:
+                self.script.db.unregister_tree(dbt)
             script.exit(0)
 
         if args.trees:
             trees = []
-            for tree in args.trees:
-                entry = self.script.db.get_tree(tree)
+            for dbt in args.trees:
+                entry = self.script.db.get_tree(dbt)
                 if entry is None:
-                    self.script.exit(1,'Path not registered: %s' % tree)
+                    self.script.exit(1,'Path not registered: %s' % dbt)
                 trees.append(entry)
         else:
             trees = self.script.db.trees
 
         if args.list:
-            for tree in self.script.db.trees:
-                print 'Tree: %s' % tree.path
-                for album in tree.albums:
-                    print '  %s' % album.relative_path
+            for dbt in self.script.db.trees:
+                print 'Tree: %s' % dbt.path
+
+        if args.list_tracks:
+            for dbt in self.script.db.trees:
+                print 'Tree: %s' % dbt.path
+                for album in dbt.albums:
+                    if album.relative_path:
+                        print '  %s' % album.relative_path
                     for track in album.tracks:
                         print '    %s' % track.filename
                         for tag in track.tags:
                             print '      %s=%s' % (tag.tag,tag.value)
 
-        if args.list_tracks:
-            for tree in trees:
-                if not len(tree.tracks):
-                    self.script.log.debug('No tracks in tree %s' % tree.path)
-                    continue
-                self.script.log.debug('%s %d tracks' % (tree.path,len(tree.tracks)))
-                for track in tree.tracks:
-                    print track.relative_path
-
         if args.update:
-            for tree in trees:
-                instance = Tree(tree.path)
-                instance.load()
-                self.script.log.debug('Updating database entries for %s' % tree.path)
-                tree.update(self.script.db.session,instance)
+            for dbt in trees:
+                self.script.log.debug('Updating database entries for %s' % dbt.path)
+                dbt.update(self.script.db.session,Tree(dbt.path))
 
         elif args.match:
-            for tree in trees:
-                tracks = tree.match(args.match)
+            for dbt in trees:
+                tracks = dbt.match(args.match)
                 if len(tracks):
-                    self.log.info('### %d matches in %s ###' % (len(tracks,), tree))
+                    self.log.info('### %d matches in %s ###' % (len(tracks,), dbt))
                 for track in tracks:
                     self.script.message(track)
                     if args.info:
@@ -568,9 +562,9 @@ class DatabaseCommand(MusaCommand):
                             self.script.message('%16s %s' % (t.tag, t.value))
 
         elif args.info:
-            for tree in trees:
-                summary = tree.summary()
-                script.message(tree)
+            for dbt in trees:
+                summary = dbt.summary()
+                script.message(dbt)
                 for k in sorted(summary.keys()):
                     self.script.message('%8s %s' % (k, summary[k]))
 

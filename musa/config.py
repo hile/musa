@@ -11,7 +11,7 @@ import configobj
 
 from musa import MusaError
 from musa.log import MusaLogger
-from musa.models import MusaDB, Setting, SyncTarget, Codec, Extension, Decoder, Encoder, TreeType, Tree, Track
+from musa.models import MusaDB, Setting, SyncTarget, Codec, Extension, Decoder, Encoder, DBTreeType
 from musa.defaults import INITIAL_SETTINGS, DEFAULT_CODECS, DEFAULT_TREE_TYPES, LEGACY_SYNC_CONFIG
 
 FIELD_CONVERT_MAP = {
@@ -49,11 +49,11 @@ class MusaConfigDB(object):
                     self.log.debug('Setting default for %s is %s' % (key,value))
                     self.set(key, value)
 
-            treetypes = self.session.query(TreeType).all()
+            treetypes = self.session.query(DBTreeType).all()
             if not treetypes:
                 treetypes = []
                 for name,description in DEFAULT_TREE_TYPES.items():
-                    treetypes.append(TreeType(name=name,description=description))
+                    treetypes.append(DBTreeType(name=name,description=description))
                 self.add(treetypes)
                 self.commit()
 
@@ -113,8 +113,8 @@ class SyncConfiguration(dict):
         self.log = MusaLogger('musa').default_stream
         self.db = db
 
-        for target in self.db.query(SyncTarget):
-            self[target.name] = self.db.as_dict(target)
+        for target in self.db.sync_targets:
+            self[target.name] = target.as_dict()
 
     @property
     def threads(self):
@@ -124,10 +124,8 @@ class SyncConfiguration(dict):
     def default_targets(self):
         return [k for k in self.keys() if self[k]['defaults']]
 
-    def create_target(self,name,synctype,src,dst,flags=None,defaults=False):
-        target = SyncTarget(name=name,type=synctype,src=src,dst=dst,flags=flags,defaults=defaults)
-        self.db.save(target)
-        self[name] = self.db.as_dict(target)
+    def create_sync_target(self,name,synctype,src,dst,flags=None,defaults=False):
+        self[name] = self.db.register_sync_target(name,synctype,src,dst,flags,defaults)
 
     def import_legacy_config(self,cleanup=False):
         path = LEGACY_SYNC_CONFIG
@@ -146,7 +144,7 @@ class SyncConfiguration(dict):
             if existing:
                 continue
 
-            entry = self.db.sync.create_target(name,**target)
+            entry = self.db.sync.create_sync_target(name,**target)
 
         try:
             os.unlink(path)
@@ -167,63 +165,16 @@ class CodecConfiguration(dict):
         self.db = db
         self.load()
 
-    def register_codec(self,name,extensions,description='',decoders=[],encoders=[]):
-        """
-        Register codec with given parameters
-        """
-        codec = Codec(name=name,description=description)
-        extensions = [Extension(codec=codec,extension=e) for e in extensions]
-        decoders = [Decoder(codec=codec,priority=i,command=d) for i,d in enumerate(decoders)]
-        encoders = [Encoder(codec=codec,priority=i,command=e) for i,e in enumerate(encoders)]
-        self.db.add([codec]+extensions+decoders+encoders)
-        return codec
-
     def load(self):
-        for codec in self.db.query(Codec).all():
+        for codec in self.db.registered_codecs:
             self[str(codec.name)] = codec
 
         for name, settings in DEFAULT_CODECS.items():
             if name  in self.keys():
                 continue
             self.log.debug('Import default codec: %s' % name)
-            codec = self.register_codec(name,**settings)
+            codec = self.db.register_codec(name,**settings)
             self[str(codec.name)] = codec
-
-    def add_decoder(self,codec,command,priority=None):
-        codec = self.db.query(Codec).filter(Codec.name==name)
-
-        if priority is None:
-            # TODO - implement inserting with given priority, pushing
-            # earlier instance priorities around.
-            priority = len(codec['decoders'])+1
-
-        decoder = Decoder(codec=codec,priority=priority,command=command)
-
-        self.session.add(decoder)
-        self.session.commmit()
-
-    def remove_decoder(self,codec,command,priority=None):
-        codec = self.db.query(Codec).filter(Codec.name==name)
-
-        if priority is not None:
-            decoders = self.db.query(Decoder).filter(
-                Decoder.codec==codec,
-                Decoder.priority==priority,
-                Decoder.command==command
-            )
-        else:
-            decoders = self.db.query(Decoder).filter(
-                Decoder.codec==codec,
-                Decoder.command==command
-            )
-        for d in decoders:
-            self.session.delete(d)
-        self.session.commit()
-
-    def update_codec_description(self, name, description):
-        codec = self.db.query(Codec).filter(Codec.name==name)
-        codec.description = description
-        self.db.commit()
 
     def extensions(self,codec):
         if codec in self.keys():

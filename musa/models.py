@@ -97,6 +97,15 @@ class SyncTarget(Base):
     flags = Column(SafeUnicode)
     defaults = Column(Boolean)
 
+    def as_dict(self):
+        return {
+            'name': self.name,
+            'type': self.type,
+            'src':  self.src,
+            'dst':  self.dst,
+            'flags': self.flags,
+            'defaults': self.defaults,
+        }
 
 class Codec(Base):
 
@@ -222,11 +231,11 @@ class Encoder(Base):
         return '%s encoder: %s' % (self.codec.name, self.command)
 
 
-class PlaylistSource(Base):
+class DBPlaylistSource(Base):
 
-    """PlaylistSource
+    """DBPlaylistSource
 
-    Playlist parent folders
+    DBPlaylist parent folders
 
     """
 
@@ -243,15 +252,15 @@ class PlaylistSource(Base):
         for playlist in source:
 
             directory = os.path.realpath(playlist.directory)
-            db_playlist = session.query(Playlist).filter(
-                Playlist.parent==self,
-                Playlist.folder==directory,
-                Playlist.name==playlist.name,
-                Playlist.extension==playlist.extension
+            db_playlist = session.query(DBPlaylist).filter(
+                DBPlaylist.parent==self,
+                DBPlaylist.folder==directory,
+                DBPlaylist.name==playlist.name,
+                DBPlaylist.extension==playlist.extension
             ).first()
 
             if db_playlist is None:
-                db_playlist = Playlist(
+                db_playlist = DBPlaylist(
                     parent=self,
                     folder=directory,
                     name=playlist.name,
@@ -266,17 +275,17 @@ class PlaylistSource(Base):
             tracks = []
             for index,path in enumerate(playlist):
                 position = index+1
-                tracks.append(PlaylistTrack(playlist=db_playlist,path=path,position=position))
+                tracks.append(DBPlaylistTrack(playlist=db_playlist,path=path,position=position))
             session.add_all(tracks)
             db_playlist.updated = datetime.now()
             session.commit()
 
 
-class Playlist(Base):
+class DBPlaylist(Base):
 
-    """Playlist
+    """DBPlaylist
 
-    Playlist file of audio tracks
+    DBPlaylist file of audio tracks
 
     """
 
@@ -291,7 +300,7 @@ class Playlist(Base):
     description = Column(SafeUnicode)
 
     parent_id = Column(Integer, ForeignKey('playlist_sources.id'), nullable=False)
-    parent = relationship('PlaylistSource', single_parent=False,
+    parent = relationship('DBPlaylistSource', single_parent=False,
         backref=backref('playlists', order_by=[folder, name], cascade='all, delete, delete-orphan')
     )
 
@@ -301,9 +310,9 @@ class Playlist(Base):
     def __len__(self):
         return len(self.tracks)
 
-class PlaylistTrack(Base):
+class DBPlaylistTrack(Base):
 
-    """PlaylistTrack
+    """DBPlaylistTrack
 
     Audio track in a playlist
 
@@ -317,7 +326,7 @@ class PlaylistTrack(Base):
     path = Column(SafeUnicode)
 
     playlist_id = Column(Integer, ForeignKey('playlists.id'), nullable=False)
-    playlist = relationship('Playlist', single_parent=False,
+    playlist = relationship('DBPlaylist', single_parent=False,
         backref=backref('tracks', order_by=position, cascade='all, delete, delete-orphan')
     )
 
@@ -325,9 +334,9 @@ class PlaylistTrack(Base):
         return '%d %s' % (self.position, self.path)
 
 
-class TreeType(Base):
+class DBTreeType(Base):
 
-    """TreeType
+    """DBTreeType
 
     Audio file tree types (music, samples, loops etc.)
 
@@ -343,9 +352,9 @@ class TreeType(Base):
         return self.name
 
 
-class Tree(Base):
+class DBTree(Base):
 
-    """Tree
+    """DBTree
 
     Audio file tree
 
@@ -358,7 +367,7 @@ class Tree(Base):
     description = Column(SafeUnicode)
 
     type_id = Column(Integer, ForeignKey('treetypes.id'), nullable=True)
-    type = relationship('TreeType', single_parent=True,
+    type = relationship('DBTreeType', single_parent=True,
         backref=backref('trees', order_by=path, cascade='all, delete, delete-orphan')
     )
 
@@ -366,30 +375,44 @@ class Tree(Base):
         return self.path
 
     def update(self,session,tree,update_checksum=True):
+        """
+        Update tracks in database from loaded musa tree instance
+        """
         added,updated,deleted = 0,0,0
 
-        for album in tree.as_albums():
+        albums = tree.as_albums()
+        album_paths = [a.path for a in albums]
+        track_paths = tree.realpaths
 
-            db_album = session.query(Album).filter(Album.tree==self,Album.directory==album.path).first()
+        logger.debug('Updating existing tree tracks')
+        for album in albums:
+
+            db_album = session.query(DBAlbum).filter(
+                DBAlbum.tree==self,
+                DBAlbum.directory==album.path
+            ).first()
+
             if db_album is None:
-                db_album = Album(tree=self,directory=album.path, mtime=album.mtime)
+                logger.debug('Added album: %s' % album.path)
+                db_album = DBAlbum(tree=self,directory=album.path, mtime=album.mtime)
                 session.add(db_album)
 
             elif db_album.mtime!=album.mtime:
                 db_album.mtime = album.mtime
 
             else:
-                logger.debug('Not modified: %s' % album.path)
+                # Album was not modified
                 continue
 
             for track in album:
-                db_track = session.query(Track).filter(
-                    Track.directory==track.path.directory,
-                    Track.filename==track.path.filename
+                db_track = session.query(DBTrack).filter(
+                    DBTrack.directory==track.path.directory,
+                    DBTrack.filename==track.path.filename
                 ).first()
 
                 if db_track is None:
-                    db_track = Track(
+                    logger.debug('Added track: %s' % track.path)
+                    db_track = DBTrack(
                         tree=self,
                         album=db_album,
                         directory=track.directory,
@@ -402,33 +425,55 @@ class Tree(Base):
                     added +=1
 
                 elif db_track.mtime != track.mtime:
+                    logger.debug('Updated track: %s' % track.path)
                     db_track.update(session,track)
                     updated += 1
 
                 elif not db_track.checksum and update_checksum:
+                    logger.debug('Updated track checksum: %s' % track.path)
                     db_track.update_checksum(session)
                     updated += 1
 
             session.commit()
 
+        logger.debug('Checking for removed albums')
         for album in self.albums:
-            if not album.exists:
-                session.delete(album)
+            if album.path in album_paths:
+                continue
+            if album.exists:
+                continue
+            logger.debug('Removing album: %s' % album.path)
+            session.delete(album)
 
+        logger.debug('Checking for removed tracks')
         for track in self.tracks:
-            if not track.exists:
-                session.delete(track)
-                deleted += 1
-
-            session.commit()
+            if track.path in track_paths:
+                continue
+            if track.exists:
+                continue
+            logger.debug('Removing track: %s' % track.path)
+            session.delete(track)
+            deleted += 1
+        session.commit()
 
         return added,updated,deleted
 
     def match(self,match):
+        """Match database tracks
+
+        Return tracks matching given search terms. NOT YET IMPLEMENTED.
+
+        """
         logger.debug('Matching %s: %s' % (self,match))
         return []
 
     def to_json(self):
+        """Return tree as JSON
+
+        Return tree path, description albums and total counters as JSON
+
+        """
+
         return json.dumps({
             'id': self.id,
             'path': self.path,
@@ -438,11 +483,11 @@ class Tree(Base):
             'total_songs': len(self.songs),
         })
 
-class Album(Base):
+class DBAlbum(Base):
 
-    """Album
+    """DBAlbum
 
-    Album of music tracks in tree database.
+    DBAlbum of music tracks in tree database.
 
     """
 
@@ -453,7 +498,7 @@ class Album(Base):
     directory = Column(SafeUnicode)
     mtime = Column(Integer)
     tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
-    tree = relationship('Tree', single_parent=False,
+    tree = relationship('DBTree', single_parent=False,
         backref=backref('albums', order_by=directory, cascade='all, delete, delete-orphan')
     )
 
@@ -491,6 +536,11 @@ class Album(Base):
         return tval.isoformat()
 
     def to_json(self):
+        """Return album as JSON
+
+        Return album metadata + tracks IDs and filenames as JSON
+
+        """
         return json.dumps({
             'id': self.id,
             'path': self.directory,
@@ -498,11 +548,11 @@ class Album(Base):
             'tracks': [{'id': t.id, 'filename': t.filename} for t in self.tracks]
         })
 
-class AlbumArt(Base):
+class DBAlbumArt(Base):
 
-    """Album
+    """DBAlbum
 
-    Albumart files for music albums in tree database.
+    DBAlbumart files for music albums in tree database.
 
     """
 
@@ -513,17 +563,17 @@ class AlbumArt(Base):
     albumart = Column(Base64Field)
 
     album_id = Column(Integer, ForeignKey('albums.id'), nullable=True)
-    album = relationship('Album', single_parent=False,
+    album = relationship('DBAlbum', single_parent=False,
         backref=backref('albumarts', cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
-        return 'Albumart for %s' % self.album.path
+        return 'DBAlbumart for %s' % self.album.path
 
 
-class Track(Base):
+class DBTrack(Base):
 
-    """Track
+    """DBTrack
 
     Audio file. Optionally associated with a audio file tree
 
@@ -541,16 +591,16 @@ class Track(Base):
     deleted = Column(Boolean)
 
     tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
-    tree = relationship('Tree', single_parent=False,
+    tree = relationship('DBTree', single_parent=False,
         backref=backref('tracks', order_by=[directory, filename], cascade='all, delete, delete-orphan')
     )
     album_id = Column(Integer, ForeignKey('albums.id'), nullable=True)
-    album = relationship('Album', single_parent=False,
+    album = relationship('DBAlbum', single_parent=False,
         backref=backref('tracks', order_by=[directory,filename], cascade='all, delete, delete-orphan')
     )
 
     def __repr__(self):
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                return os.sep.join([self.directory, self.filename])
+        return os.sep.join([self.directory, self.filename])
 
     @property
     def path(self):
@@ -585,11 +635,11 @@ class Track(Base):
     def update(self,session,track,update_checksum=True):
         logger.debug('update track: %s' % self.path)
         self.mtime = track.mtime
-        for tag in session.query(Tag).filter(Tag.track == self):
+        for tag in session.query(DBTag).filter(DBTag.track == self):
             session.delete(tag)
 
         for tag,value in track.tags.items():
-            session.add(Tag(track=self,tag=tag,value=value))
+            session.add(DBTag(track=self,tag=tag,value=value))
 
         if update_checksum:
             self.update_checksum(session)
@@ -612,9 +662,9 @@ class Track(Base):
         })
 
 
-class Tag(Base):
+class DBTag(Base):
 
-    """Tag
+    """DBTag
 
     Metadata tag for an audio file
 
@@ -628,7 +678,7 @@ class Tag(Base):
     base64_encoded=Column(Boolean)
 
     track_id=Column(Integer, ForeignKey('tracks.id'), nullable = False)
-    track=relationship('Track', single_parent = False,
+    track=relationship('DBTrack', single_parent = False,
         backref = backref('tags', order_by=tag, cascade='all, delete, delete-orphan')
     )
 
@@ -715,102 +765,138 @@ class MusaDB(object):
         self.session.commit()
 
     @property
+    def sync_targets(self):
+        return self.query(SyncTarget).all()
+
+    @property
+    def registered_codecs(self):
+        return self.query(Codec).all()
+
+    @property
     def playlist_sources(self):
 
-        """Return registered PlaylistSource objects from database"""
+        """Return registered DBPlaylistSource objects from database"""
 
-        return self.query(PlaylistSource).all()
+        return self.query(DBPlaylistSource).all()
 
     @property
     def playlist(self):
 
-        """Return registered Playlist objects from database"""
+        """Return registered DBPlaylist objects from database"""
 
-        return self.query(Playlist).all()
+        return self.query(DBPlaylist).all()
 
     @property
     def trees(self):
 
-        """Return registered Tree objects from database"""
+        """Return registered DBTree objects from database"""
 
-        return self.query(Tree).all()
+        return self.query(DBTree).all()
 
     @property
     def albums(self):
 
-        """Return registered Album objects from database"""
+        """Return registered DBAlbum objects from database"""
 
-        return self.query(Album).all()
+        return self.query(DBAlbum).all()
 
     @property
     def tracks(self):
 
-        """Return registered Track objects from database"""
+        """Return registered DBTrack objects from database"""
 
-        return self.query(Track).all()
+        return self.query(DBTrack).all()
+
+    def register_sync_target(self,name,type,src,dst,flags=None,defaults=False):
+        existing = self.query(SyncTarget).filter(SyncTarget.name==name).first()
+        if existing:
+            raise MusaError('Sync target was already registerd: %s' % name)
+        target = SyncTarget(name=name,type=synctype,src=src,dst=dst,flags=flags,defaults=defaults)
+        self.add(target)
+        return target.as_dict()
+
+    def unregister_sync_target(self,name):
+        existing = self.query(SyncTarget).filter(SyncTarget.name==name).first()
+        if not existing:
+            raise MusaError('Sync target was not registered: %s' % name)
+        self.delete(existing)
+
+    def register_codec(self,name,extensions,description='',decoders=[],encoders=[]):
+        """
+        Register codec with given parameters
+        """
+        codec = Codec(name=name,description=description)
+        extensions = [Extension(codec=codec,extension=e) for e in extensions]
+        decoders = [Decoder(codec=codec,priority=i,command=d) for i,d in enumerate(decoders)]
+        encoders = [Encoder(codec=codec,priority=i,command=e) for i,e in enumerate(encoders)]
+        self.add([codec]+extensions+decoders+encoders)
+        return codec
 
     def register_tree_type(self, name, description=''):
-        existing = self.query(TreeType).filter(TreeType.name==name).first()
+        existing = self.query(DBTreeType).filter(DBTreeType.name==name).first()
         if existing:
             raise MusaError('Tree type was already registered: %s' % name)
 
-        self.add(TreeType(name=name, description=description))
+        self.add(DBTreeType(name=name, description=description))
 
     def unregister_tree_type(self, name, description=''):
-        existing = self.query(TreeType).filter(TreeType.name==name).first()
+        existing = self.query(DBTreeType).filter(DBTreeType.name==name).first()
         if not existing:
             raise MusaError('Tree type was not registered: %s' % name)
 
         self.delete(existing)
 
     def register_playlist_source(self,path,name='Playlists'):
-        existing = self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+        existing = self.query(DBPlaylistSource).filter(DBPlaylistSource.path==path).first()
         if existing:
             raise MusaError('Playlist source is already registered: %s' % path)
 
-        self.add(PlaylistSource(path=path,name=name))
+        self.add(DBPlaylistSource(path=path,name=name))
 
     def unregister_playlist_source(self, path):
-        existing = self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+        existing = self.query(DBPlaylistSource).filter(DBPlaylistSource.path==path).first()
         if not existing:
             raise MusaError('Playlist source is not registered: %s' % path)
 
         self.delete(existing)
 
     def get_playlist_source(self,path):
-        return self.query(PlaylistSource).filter(PlaylistSource.path==path).first()
+        return self.query(DBPlaylistSource).filter(DBPlaylistSource.path==path).first()
 
     def get_playlist(self,path):
-        return self.query(Playlist).filter(Playlist.path==path).first()
+        return self.query(DBPlaylist).filter(DBPlaylist.path==path).first()
 
     def register_tree(self,path,description='',tree_type='songs'):
         if isinstance(path,str):
             path = unicode(path,'utf-8')
 
-        existing = self.query(Tree).filter(Tree.path==path).first()
+        existing = self.query(DBTree).filter(DBTree.path==path).first()
         if existing:
             raise MusaError('Tree was already registered: %s' % path)
 
         tt = self.get_tree_type(tree_type)
-        self.add(Tree(path=path,description=description,type=tt))
+        self.add(DBTree(path=path,description=description,type=tt))
 
     def unregister_tree(self,path,description=''):
-        existing = self.query(Tree).filter(Tree.path==path).first()
+        existing = self.query(DBTree).filter(DBTree.path==path).first()
         if not existing:
             raise MusaError('Tree was not registered: %s' % path)
 
         self.delete(existing)
 
+    def get_codec(self,name):
+        return self.query(Codec).filter(Codec.name==name).first()
+
     def get_tree_type(self,name):
-        return self.query(TreeType).filter(TreeType.name==name).first()
+        return self.query(DBTreeType).filter(DBTreeType.name==name).first()
 
     def get_tree(self,path,tree_type='songs'):
-        return self.query(Tree).filter(Tree.path==path).first()
+        return self.query(DBTree).filter(DBTree.path==path).first()
 
     def get_album(self,path):
-        return self.query(Album).filter(Album.directory==path).first()
+        return self.query(DBAlbum).filter(DBAlbum.directory==path).first()
 
     def get_track(self,path):
         directory = os.path.dirname(path)
         filename = os.path.basename(path)
-        return self.query(Track).filter(Track.directory==directory,Track.filename==filename).first()
+        return self.query(DBTrack).filter(DBTrack.directory==directory,DBTrack.filename==filename).first()

@@ -205,8 +205,8 @@ class Tree(IterableTrackFolder):
             return tracks
 
     @property
-    def db_file(self):
-        return os.path.join(self.path, '.musa.sqlite')
+    def directories(self):
+        return set(normalized(os.path.dirname(x)) for x in self.paths.keys())
 
     @property
     def realpaths(self):
@@ -252,6 +252,7 @@ class Album(IterableTrackFolder):
                     metadata.__class__(os.path.join(self.path, f))
                 )
 
+        self.files.sort()
 
     @property
     def mtime(self):
