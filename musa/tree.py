@@ -182,7 +182,7 @@ class Tree(IterableTrackFolder):
         self.files.sort(lambda x, y: self.__cmp_file_path__(x, y))
 
         stop = long(time.mktime(time.localtime()))
-        self.log.debug('loaded %d songs in %d seconds' % (len(self.files), (stop-start)))
+        self.log.debug('loaded %d files in %d seconds' % (len(self.files), (stop-start)))
 
     def filter_tracks(self,regexp=None,re_path=True,re_file=True,as_tracks=False):
         if not len(self.files):

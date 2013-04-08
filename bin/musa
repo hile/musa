@@ -552,21 +552,21 @@ class DatabaseCommand(MusaCommand):
 
         elif args.match:
             for dbt in trees:
-                tracks = dbt.match(args.match)
+                tracks = dbt.match(self.script.db.session,args.match)
                 if len(tracks):
                     self.log.info('### %d matches in %s ###' % (len(tracks,), dbt))
                 for track in tracks:
-                    self.script.message(track)
+                    self.script.message(track.relative_path)
                     if args.info:
                         for t in track.tags:
                             self.script.message('%16s %s' % (t.tag, t.value))
 
         elif args.info:
             for dbt in trees:
-                summary = dbt.summary()
                 script.message(dbt)
-                for k in sorted(summary.keys()):
-                    self.script.message('%8s %s' % (k, summary[k]))
+                script.message('Albums: %s' % dbt.album_count(self.script.db.session))
+                script.message('Songs: %s' % dbt.song_count(self.script.db.session))
+                script.message('Tags: %s' % dbt.tag_count(self.script.db.session))
 
 
 class PlaylistCommand(MusaCommand):

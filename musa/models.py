@@ -374,6 +374,15 @@ class DBTree(Base):
     def __repr__(self):
         return self.path
 
+    def album_count(self,session):
+        return session.query(DBAlbum).filter(DBAlbum.tree==self).count()
+
+    def song_count(self,session):
+        return session.query(DBTrack).filter(DBTrack.tree==self).count()
+
+    def tag_count(self,session):
+        return session.query(DBTag).filter(DBTrack.tree==self).filter(DBTag.track_id==DBTrack.id).count()
+
     def update(self,session,tree,update_checksum=True):
         """
         Update tracks in database from loaded musa tree instance
@@ -398,11 +407,8 @@ class DBTree(Base):
                 session.add(db_album)
 
             elif db_album.mtime!=album.mtime:
+                logger.debug('Updated album: %s' % album.path)
                 db_album.mtime = album.mtime
-
-            else:
-                # Album was not modified
-                continue
 
             for track in album:
                 db_track = session.query(DBTrack).filter(
@@ -458,14 +464,16 @@ class DBTree(Base):
 
         return added,updated,deleted
 
-    def match(self,match):
+    def match(self,session,match):
         """Match database tracks
 
-        Return tracks matching given search terms. NOT YET IMPLEMENTED.
+        Return tracks matching given tag value.
 
         """
-        logger.debug('Matching %s: %s' % (self,match))
-        return []
+        return session.query(DBTrack)\
+            .filter(DBTrack.tree==self)\
+            .filter(DBTag.track_id==DBTrack.id)\
+            .filter(DBTag.value.like('%%%s%%' % match)).all()
 
     def to_json(self):
         """Return tree as JSON
@@ -633,7 +641,6 @@ class DBTrack(Base):
         return tval.isoformat()
 
     def update(self,session,track,update_checksum=True):
-        logger.debug('update track: %s' % self.path)
         self.mtime = track.mtime
         for tag in session.query(DBTag).filter(DBTag.track == self):
             session.delete(tag)
@@ -645,7 +652,6 @@ class DBTrack(Base):
             self.update_checksum(session)
 
     def update_checksum(self,session):
-        logger.debug('update MD5: %s' % self.path)
         with open(self.path,'rb') as fd:
             m = hashlib.md5()
             m.update(fd.read())
