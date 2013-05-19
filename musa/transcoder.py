@@ -44,6 +44,10 @@ class TranscoderThread(MusaThread):
             except OSError, (ecode, emsg):
                 raise TranscoderError('Error creating directory %s: %s' % (MUSA_CACHE_DIR, emsg))
 
+    def error(self,message):
+        print message
+        sys.exit(1)
+
     def run(self):
         """
         Run the thread, calling source_song.decode() to create a temporary
@@ -58,7 +62,7 @@ class TranscoderThread(MusaThread):
                 else:
                     self.log.debug('remove: %s' % self.dst.path)
             except OSError, (ecode, emsg):
-                raise TranscoderError('Error removing %s: %s' % (self.dst.path, emsg))
+                self.error('Error removing %s: %s' % (self.dst.path, emsg))
 
         dst_dir = os.path.dirname(self.dst.path)
         if not os.path.isdir(dst_dir):
@@ -70,7 +74,7 @@ class TranscoderThread(MusaThread):
                     # Other thread created directory before us, forget it
                     pass
                 else:
-                    raise TranscoderError('Error creating directory %s: %s' % (dst_dir, emsg))
+                    self.error('Error creating directory %s: %s' % (dst_dir, emsg))
 
         wav = tempfile.NamedTemporaryFile(
             dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.wav'
@@ -91,7 +95,8 @@ class TranscoderThread(MusaThread):
             decoder = src.get_decoder_command(wav.name)
             encoder = dst.get_encoder_command(wav.name)
         except TreeError, emsg:
-            raise TranscoderError(emsg)
+            self.error(emsg)
+
 
         try:
             if not self.dry_run:
@@ -104,34 +109,35 @@ class TranscoderThread(MusaThread):
             else:
                 self.log.debug('decoder: %s' % ' '.join(decoder))
                 self.log.debug('encoder: %s' % ' '.join(encoder))
+                self.log.debug('target file: %s' % self.dst.path)
             del(wav)
 
         except TranscoderError, emsg:
-            self.log.debug('ERROR transcoding: %s' % emsg)
             if wav and os.path.isfile(wav):
                 try:
                     del(wav)
                 except OSError:
                     pass
             self.status = str(e)
-            return
+            self.error('ERROR transcoding: %s' % emsg)
 
-        if not os.path.isfile(self.dst.path):
-            raise TranscoderError('File was not successfully transcoded: %s' % self.dest.path)
+        if not self.dry_run and not os.path.isfile(self.dst.path):
+            self.error('File was not successfully transcoded: %s' % self.dst.path)
 
-        try:
-            self.status = 'tagging'
-            if self.src.tags is not None:
-                self.log.debug('tagging:  %s %s' % (self.index, self.dst.path))
-                if not self.dry_run:
-                    if self.dst.tags is not None:
-                        if self.dst.tags.update_tags(self.src.tags.as_dict()):
-                            self.dst.tags.save()
-                    else:
-                        # Destination does not support tags
-                        pass
-        except TagError, emsg:
-            raise TranscoderError(emsg)
+        if not self.dry_run:
+            try:
+                self.status = 'tagging'
+                if self.src.tags is not None:
+                    self.log.debug('tagging:  %s %s' % (self.index, self.dst.path))
+                    if not self.dry_run:
+                        if self.dst.tags is not None:
+                            if self.dst.tags.update_tags(self.src.tags.as_dict()):
+                                self.dst.tags.save()
+                        else:
+                            # Destination does not support tags
+                            pass
+            except TagError, emsg:
+                self.error(emsg)
 
         self.status = 'finished'
 
@@ -159,7 +165,7 @@ class MusaTranscoder(MusaThreadManager):
         except TreeError, emsg:
             raise TranscoderError(str(emsg))
 
-        self.log.debug('enqueue: %s' % (src.path))
+        self.log.debug('enqueue: %s -> %s' % (src.path,dst.path))
         self.append((src, dst))
 
     def get_entry_handler(self, index, entry):

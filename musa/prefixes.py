@@ -45,6 +45,7 @@ class MusicTreePrefix(object):
 
     """
     def __init__(self,path,extensions=[]):
+        self.log = MusaLogger('musa').default_stream
         self.path = path.rstrip(os.sep)
         if not isinstance(extensions, list):
             raise PrefixError('Extensions must be a list')
@@ -73,28 +74,36 @@ class MusicTreePrefix(object):
         return os.path.realpath(self.path)
 
     def match(self, path):
-        path = path.rstrip(os.sep)
         if path[:len(self.path)] == self.path:
             return True
+
         realpath = os.path.realpath(path)
-        if realpath[:len(self.path)] == self.path:
+        mypath = os.path.realpath(self.path)
+        if realpath[:len(mypath)] == mypath:
             return True
+
         return False
 
     def match_extension(self, extension):
+        if not isinstance(extension,unicode):
+            extension = unicode(extension,'utf-8')
         return extension in self.extensions
 
     def relative_path(self, path):
         path = path.rstrip(os.sep)
         if path[:len(self.path)] == self.path:
             return path_string(path[len(self.path):].lstrip(os.sep))
+
         realpath = os.path.realpath(path)
-        if realpath[:len(self.path)] == self.path:
-            return path_string(realpath[len(self.path):].lstrip(os.sep))
+        mypath = os.path.realpath(self.path)
+
+        if realpath[:len(mypath)] == mypath:
+            return path_string(realpath[len(mypath):].lstrip(os.sep))
+
         raise PrefixError('Prefix does not match: %s' % path)
 
 
-class TreePrefixes(list):
+class TreePrefixes(object):
 
     """TreePrefixes
 
@@ -104,16 +113,17 @@ class TreePrefixes(list):
     __instance = None
 
     def __init__(self):
-        if not TreePrefixes.__instance:
+        if TreePrefixes.__instance is None:
             TreePrefixes.__instance = TreePrefixes.TreePrefixInstance()
             self.__dict__['TreePrefixes.__instance'] = TreePrefixes.__instance
 
     class TreePrefixInstance(list):
 
         def __init__(self):
-            list.__init__(self)
             self.log = MusaLogger('musa').default_stream
+            list.__init__(self)
             self.db = MusaConfigDB()
+
             for path in DEFAULT_PATHS:
                 for name,codec in self.db.codecs.items():
                     prefix_path = os.path.join(path, name)
@@ -127,7 +137,7 @@ class TreePrefixes(list):
 
             itunes_prefix = MusicTreePrefix(ITUNES_MUSIC, self.db.codecs.extensions('m4a'))
             self.register_prefix(itunes_prefix)
-            self.sort(lambda x, y: cmp(x.path, y.path))
+            #self.sort(lambda x, y: cmp(x.path, y.path))
             self.load_user_config()
 
         def load_user_config(self):
@@ -167,14 +177,17 @@ class TreePrefixes(list):
         def index(self, prefix):
             if not isinstance(prefix, MusicTreePrefix):
                 raise PrefixError('Prefix must be MusicTreePrefix instance')
+
             for index, existing in enumerate(self):
                 if prefix.realpath == existing.realpath:
                     return index
+
             raise IndexError('Prefix is not registered')
 
         def register_prefix(self,prefix,extensions=[],prepend=False):
             if isinstance(prefix, basestring):
                 prefix = MusicTreePrefix(prefix, extensions)
+
             if not isinstance(prefix, MusicTreePrefix):
                 raise PrefixError('prefix must be string or MusicTreePrefix instance')
 
@@ -193,22 +206,30 @@ class TreePrefixes(list):
             for prefix in self:
                 if match_existing and not os.path.isdir(prefix.path):
                     continue
+
                 if prefix.match_extension(extension):
                     return prefix
+
             return None
 
         def match(self,path,match_existing=False):
             for prefix in self:
+
                 if match_existing and not os.path.isdir(prefix.path):
+                    self.log.debug('skip unavailable prefix: %s' % prefix.path)
                     continue
+
                 if prefix.match(path):
                     return prefix
+
+            self.log.debug('no match for %s' % path)
             return None
 
         def relative_path(self, path):
             prefix = self.match(path)
             if not prefix:
                 return path
+
             return prefix.relative_path(path)
 
     def __getattr__(self, attr):

@@ -422,8 +422,9 @@ class ConvertCommand(MusaCommand):
 
         if prefix is None:
             raise MusaScriptError('Could not resolve target path')
+
         if prefix_path is None:
-            print 'Using default prefix path from %s' % prefix
+            #print 'Using default prefix path %s' % prefix.path
             prefix_path = prefix.path
 
         extension = prefix.extensions[0]
@@ -433,7 +434,7 @@ class ConvertCommand(MusaCommand):
     def transcode(self, src, dst=None, prefix_path=None, codec=None):
         if isinstance(src, Tree) and isinstance(dst, Tree):
             for track in src:
-                dst_track = self.parse_target_relative_path(track, dst, prefix_path,codec)
+                dst_track = self.parse_target_relative_path(track, dst, prefix_path, codec)
                 self.enqueue(track, dst_track)
 
         elif isinstance(src, Track) and (isinstance(dst, Tree) or isinstance(dst, Track)):
