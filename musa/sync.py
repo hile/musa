@@ -221,6 +221,7 @@ class SyncManager(MusaThreadManager):
         if 'delete' not in config:
             config['delete'] = self.delete
         for k in ('id','name','defaults'):
-            config.pop(k)
+            if k in config:
+                config.pop(k)
         self.append(config)
 

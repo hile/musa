@@ -118,7 +118,7 @@ class SyncConfiguration(dict):
 
     @property
     def threads(self):
-        return self.db.get('threads')
+        return int(self.db.get('threads'))
 
     @property
     def default_targets(self):

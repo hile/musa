@@ -462,7 +462,7 @@ class ConvertCommand(MusaCommand):
 
         threads = args.threads is not None and args.threads or self.script.db.get('threads')
 
-        self.transcoder = MusaTranscoder(args.overwrite, args.dry_run)
+        self.transcoder = MusaTranscoder(threads, args.overwrite, args.dry_run)
         self.overwrite = args.overwrite
 
         self.metadata_paths_to_copy = {}

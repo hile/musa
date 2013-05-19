@@ -49,13 +49,18 @@ class MusicTreePrefix(object):
         if not isinstance(extensions, list):
             raise PrefixError('Extensions must be a list')
 
+        self.extensions = []
         for ext in extensions:
             if hasattr(ext, 'extension'):
                 ext = ext.extension
-            if not isinstance(ext, basestring):
+            elif not isinstance(ext, basestring):
                 raise PrefixError('Extensions must be a list of strings')
 
-        self.extensions = extensions
+            if not isinstance(ext,unicode):
+                ext = unicode(ext,'utf-8')
+
+            if self.extensions.count(ext)==0:
+                self.extensions.append(ext)
 
     def __repr__(self):
         if self.extensions:
@@ -172,6 +177,7 @@ class TreePrefixes(list):
                 prefix = MusicTreePrefix(prefix, extensions)
             if not isinstance(prefix, MusicTreePrefix):
                 raise PrefixError('prefix must be string or MusicTreePrefix instance')
+
             try:
                 index = self.index(prefix)
                 if prepend and index != 0:
@@ -210,3 +216,4 @@ class TreePrefixes(list):
 
     def __setattr__(self, attr, value):
         return setattr(self.__instance, attr, value)
+

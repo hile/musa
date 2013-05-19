@@ -138,7 +138,7 @@ class TranscoderThread(MusaThread):
 
 class MusaTranscoder(MusaThreadManager):
     def __init__(self,threads,overwrite=False,dry_run=False):
-        MusaThreadManager.__init__(self, 'convert', threads)
+        MusaThreadManager.__init__(self, 'convert', int(threads))
         self.overwrite = overwrite
         self.dry_run = dry_run
 
@@ -167,5 +167,5 @@ class MusaTranscoder(MusaThreadManager):
         return TranscoderThread(index, src, dst, self.overwrite, self.dry_run)
 
     def run(self):
-        self.log.debug('Transcoding %d files with %d threads' % (len(self), self.threads))
+        self.log.debug('Transcoding %s files with %d threads' % (len(self), self.threads))
         MusaThreadManager.run(self)
