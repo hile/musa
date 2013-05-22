@@ -411,24 +411,28 @@ class ConvertCommand(MusaCommand):
 
         if codec is not None:
             prefix = self.prefixes.match_extension(codec, match_existing=True)
-            if prefix is None:
-                self.prefixes.match_extension(codec, match_existing=False)
         elif dst is not None:
             prefix = self.prefixes.match(dst.path, match_existing=True)
             if prefix is None:
-                prefix = self.prefixes.match(dst.path, match_existing=True)
+                prefix = self.prefixes.match(dst.path, match_existing=False)
         else:
             raise MusaScriptError('BUG in parse_target_relative_path: Both dst and codec were None')
 
         if prefix is None:
-            raise MusaScriptError('Could not resolve target path')
-
-        if prefix_path is None:
-            #print 'Using default prefix path %s' % prefix.path
-            prefix_path = prefix.path
+            raise MusaScriptError('Error matching target file prefix')
 
         extension = prefix.extensions[0]
-        dst_relpath = '%s.%s' % (os.path.splitext(src.relative_path)[0], extension)
+        if prefix_path is None:
+            prefix_path = prefix.path
+
+        if src.relative_path.startswith(os.sep):
+            # Could not parse relative path for source: encode to src directory
+            prefix_path = os.path.dirname(os.path.realpath(src.path))
+            dst_relpath = '%s.%s' % (os.path.splitext(src.path)[0], extension)
+        else:
+            # Encode to relative path in prefix directory
+            dst_relpath = '%s.%s' % (os.path.splitext(src.relative_path)[0], extension)
+
         return Track(os.path.join(prefix_path, dst_relpath))
 
     def transcode(self, src, dst=None, prefix_path=None, codec=None):
