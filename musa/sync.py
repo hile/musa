@@ -64,7 +64,7 @@ class SyncThread(MusaThread):
             self.src = src.path
         elif isinstance(src,basestring):
             self.src_tree = None
-            self.src = src.rstrip(os.sep)
+            self.src = os.path.expandvars(src).rstrip(os.sep)
         else:
             raise SyncError('Src is not string or Tree object: %s' % src)
 
@@ -73,7 +73,7 @@ class SyncThread(MusaThread):
             self.dst = dst.path
         elif isinstance(dst,basestring):
             self.dst_tree = None
-            self.dst = dst.rstrip(os.sep)
+            self.dst = os.path.expandvars(dst).rstrip(os.sep)
         else:
             raise SyncError('Dst is not string or Tree object: %s' % dst)
 

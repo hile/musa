@@ -9,7 +9,7 @@ import sys
 import shutil
 import argparse
 
-from musa import MusaError
+from musa import normalized,MusaError
 from musa.cli import MusaScript, MusaCommand, MusaScriptError
 from musa.tree import Tree, Album, Track, TreeError
 from musa.tags import TagError
@@ -788,7 +788,7 @@ class TagsCommand(MusaCommand):
             self.script.exit(1, 'Error removing tags from %s: %s' % (track.path, emsg))
 
     def tags_from_path(self,track,tags={}):
-        parts = track.relative_path.split(os.sep)
+        parts = normalized(track.relative_path).split(os.sep)
         if len(parts) >= 3:
             tags['album_artist'] = parts[-3]
             tags['artist'] = parts[-3]
