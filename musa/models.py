@@ -146,7 +146,7 @@ class Codec(Base):
         session.commit()
 
     def unregister_decoder(self,session,command):
-        existing = session.query(Decoder).filter(Decoder.codec==self,Decoder.extension==extension).first()
+        existing = session.query(Decoder).filter(Decoder.codec==self,Decoder.command==command).first()
         if not existing:
             raise MusaError('Decoder was not registered: %s' % command)
         session.delete(existing)
@@ -160,9 +160,23 @@ class Codec(Base):
         session.commit()
 
     def unregister_encoder(self,session,command):
-        existing = session.query(Encoder).filter(Encoder.codec==self,Encoder.extension==extension).first()
+        existing = session.query(Encoder).filter(Encoder.codec==self,Encoder.command==command).first()
         if not existing:
             raise MusaError('Encoder was not registered: %s' % command)
+        session.delete(existing)
+        session.commit()
+
+    def register_formattester(self,session,command):
+        existing = session.query(FormatTester).filter(FormatTester.codec==self,FormatTester.command==command).first()
+        if existing:
+            raise MusaError('Format tester already registered: %s' % command)
+        session.add(FormatTester(codec=self,command=command))
+        session.commit()
+
+    def unregister_formattester(self,session,command):
+        existing = session.query(FormatTester).filter(FormatTester.codec==self,FormatTester.command==command).first()
+        if not existing:
+            raise MusaError('Format tester was not registered: %s' % command)
         session.delete(existing)
         session.commit()
 
@@ -185,6 +199,26 @@ class Extension(Base):
 
     def __repr__(self):
         return self.extension
+
+
+class FormatTester(Base):
+    """FormatTester
+
+    Command to test audio files with given codec
+
+    """
+    __tablename__ = 'formattester'
+
+    id = Column(Integer, primary_key=True)
+    command = Column(SafeUnicode)
+
+    codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
+    codec = relationship('Codec', single_parent=False,
+        backref=backref('formattesters', order_by=command, cascade='all, delete, delete-orphan')
+        )
+
+    def __repr__(self):
+        return '%s format tester: %s' % (self.codec.name, self.command)
 
 
 class Decoder(Base):

@@ -312,10 +312,32 @@ class CodecCommand(MusaCommand):
         mode_flags = []
         MusaCommand.__init__(self, script, name, description, mode_flags)
         self.parser.add_argument('-l', '--list', action='store_true', help='List configuration settings')
-        self.parser.add_argument('names', nargs='*', help='Sync targets to process')
+        self.parser.add_argument('--register-tester', help='Register tester command to specified codec')
+        self.parser.add_argument('--unregister-tester', help='Unregister tester command to specified codec')
+        self.parser.add_argument('names', nargs='*', help='Codec names to match')
 
     def parse_args(self, args):
         MusaCommand.parse_args(self, args, skip_targets=True)
+
+        if args.register_tester:
+            if len(args.names) != 1:
+                script.error(1,'Only one valid codec name can be provided with --register-tester command')
+
+            try:
+                codec = self.script.db.codecs[args.names[0]]
+                codec.register_formattester(self.script.db.session,args.register_tester)
+            except MusaError,emsg:
+                script.exit(1,emsg)
+
+        if args.unregister_tester:
+            if len(args.names) != 1:
+                script.error(1,'Only one valid codec name can be provided with --unregister-tester command')
+
+            try:
+                codec = self.script.db.codecs[args.names[0]]
+                codec.unregister_formattester(self.script.db.session,args.unregister_tester)
+            except MusaError,emsg:
+                script.exit(1,emsg)
 
         if args.list:
             for name, codec in self.script.db.codecs.items():
@@ -334,6 +356,11 @@ class CodecCommand(MusaCommand):
                     self.message('  Decoders:')
                     for decoder in codec.decoders:
                         script.message('    %s' % decoder)
+
+                if codec.formattesters:
+                    self.message('   Testers:')
+                    for tester in codec.formattesters:
+                        script.message('    %s' % tester)
 
 class ConfigCommand(MusaCommand):
 
@@ -380,7 +407,7 @@ class ConvertCommand(MusaCommand):
         self.parser.add_argument('-y', '--dry-run', action='store_true', help='Only show which tracks would have been transcoded')
         self.parser.add_argument('-f', '--overwrite', action='store_true', help='Overwrite existing target files')
         self.parser.add_argument('-p', '--prefix', help='Target file relative path prefix')
-        self.parser.add_argument('-c', '--codec', help='Destination file format for tree mode')
+        self.parser.add_argument('-c', '--codecs', help='Destination codecs for tree mode')
         self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
 
     def enqueue(self, src, dst):
@@ -411,15 +438,18 @@ class ConvertCommand(MusaCommand):
 
         if codec is not None:
             prefix = self.prefixes.match_extension(codec, match_existing=True)
+            if prefix is None:
+                raise MusaScriptError('No tree prefix matching codec %s found' % codec)
+
         elif dst is not None:
             prefix = self.prefixes.match(dst.path, match_existing=True)
             if prefix is None:
                 prefix = self.prefixes.match(dst.path, match_existing=False)
+            if prefix is None:
+                raise MusaScriptError('Error finding prefix matching path %s' % dst)
+
         else:
             raise MusaScriptError('BUG in parse_target_relative_path: Both dst and codec were None')
-
-        if prefix is None:
-            raise MusaScriptError('Error matching target file prefix')
 
         extension = prefix.extensions[0]
         if prefix_path is None:
@@ -436,21 +466,24 @@ class ConvertCommand(MusaCommand):
         return Track(os.path.join(prefix_path, dst_relpath))
 
     def transcode(self, src, dst=None, prefix_path=None, codec=None):
-        if isinstance(src, Tree) and isinstance(dst, Tree):
-            for track in src:
-                dst_track = self.parse_target_relative_path(track, dst, prefix_path, codec)
-                self.enqueue(track, dst_track)
+        try:
+            if isinstance(src, Tree) and isinstance(dst, Tree):
+                for track in src:
+                    dst_track = self.parse_target_relative_path(track, dst, prefix_path, codec)
+                    self.enqueue(track, dst_track)
 
-        elif isinstance(src, Track) and (isinstance(dst, Tree) or isinstance(dst, Track)):
-            dst_track = self.parse_target_relative_path(src, dst, prefix_path, codec)
-            self.enqueue(src, dst_track)
+            elif isinstance(src, Track) and (isinstance(dst, Tree) or isinstance(dst, Track)):
+                dst_track = self.parse_target_relative_path(src, dst, prefix_path, codec)
+                self.enqueue(src, dst_track)
 
-        elif isinstance(src, Track) and dst is None:
-            dst_track = self.parse_target_relative_path(src, prefix_path=prefix_path, codec=codec)
-            self.enqueue(src, dst_track)
+            elif isinstance(src, Track) and dst is None:
+                dst_track = self.parse_target_relative_path(src, prefix_path=prefix_path, codec=codec)
+                self.enqueue(src, dst_track)
 
-        else:
-            self.script.exit(1, 'Unsupported transcode arguments')
+            else:
+                self.script.exit(1, 'Unsupported transcode arguments')
+        except MusaScriptError,emsg:
+            self.script.exit(1,emsg)
 
     def copy_metadata(self,dry_run=False):
         for src_path, albums in self.metadata_paths_to_copy.items():
@@ -472,11 +505,12 @@ class ConvertCommand(MusaCommand):
 
         self.metadata_paths_to_copy = {}
         if args.codec is not None:
-            for tree in trees:
-                for track in tree:
-                    self.transcode(track, prefix_path=args.prefix, codec=args.codec)
-            for track in tracks:
-                self.transcode(track, prefix_path=args.prefix, codec=args.codec)
+            for codec in args.codec.split(','):
+                for tree in trees:
+                    for track in tree:
+                        self.transcode(track, prefix_path=args.prefix, codec=codec)
+                for track in tracks:
+                    self.transcode(track, prefix_path=args.prefix, codec=codec)
 
         elif len(trees) == 2:
             self.transcode(*trees,prefix_path=args.prefix)
