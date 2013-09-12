@@ -504,8 +504,8 @@ class ConvertCommand(MusaCommand):
         self.overwrite = args.overwrite
 
         self.metadata_paths_to_copy = {}
-        if args.codec is not None:
-            for codec in args.codec.split(','):
+        if args.codecs is not None:
+            for codec in args.codecs.split(','):
                 for tree in trees:
                     for track in tree:
                         self.transcode(track, prefix_path=args.prefix, codec=codec)
