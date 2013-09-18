@@ -6,6 +6,7 @@ Music tagging and management tool
 
 import os
 import sys
+import re
 import shutil
 import argparse
 
@@ -608,6 +609,81 @@ class DatabaseCommand(MusaCommand):
                 script.message('Tags: %s' % dbt.tag_count(self.script.db.session))
 
 
+class JoinCommand(MusaCommand):
+    re_original = re.compile('^[0-9-]+\s+(?P<name>.*)$')
+    def __init__(self, script):
+        name = 'join'
+        description = 'Join albums to one directory'
+        mode_flags = []
+        MusaCommand.__init__(self, script, name, description, mode_flags)
+        self.parser.add_argument('--target-path', help='Target path for files (default first path)')
+        self.parser.add_argument('-y', '--dry-run', action='store_true', help='List new track names without renaming')
+        self.parser.add_argument('paths', nargs='*', help='Directories to join')
+
+    def new_track_name(self, target_path, index, track):
+        """Return new track name
+
+        Return new track name to use for given track in target directory
+
+        """
+        original = os.path.basename(track.path)
+        m = self.re_original.match(original)
+        if not m:
+            script.exit(1, 'Track does not begin with track number: %s' % track.path)
+        return os.path.join(target_path, '%02d %s' % (index, m.groupdict()['name']))
+
+    def parse_args(self, args):
+        MusaCommand.parse_args(self, args, skip_targets=True)
+
+        if not args.paths:
+            script.exit(1, 'Paths to join not provided')
+
+        if not args.target_path:
+            args.target_path = args.paths[0]
+
+        albums = []
+        extensions = []
+        for path in args.paths:
+            if not os.path.isdir(path):
+                script.exit(1, 'Not a directory: %s' % path)
+            try:
+                album = Album(path)
+            except MusaError, emsg:
+                script.exit(1, 'Error parsing album %s: %s' % (path, emsg))
+
+            for track in album:
+                if track.extension not in extensions:
+                    extensions.append(track.extension)
+
+            albums.append(album)
+
+        if len(extensions) > 1:
+            script.exit(1, 'Refusing to merge: multiple track extensions detected: %s' % ','.join(extensions))
+
+        index = 1
+        tracks = []
+        for album in albums:
+            for track in album:
+                tracks.append((track.path, self.new_track_name(args.target_path, index, track)))
+                index += 1
+
+        if len(tracks) == 0:
+            script.exit(1, 'No audio tracks detected.')
+
+        if args.dry_run:
+            for track in tracks:
+                print track[1]
+            script.exit()
+
+        for entry in tracks:
+            if entry[0] == entry[1]:
+                continue
+
+            try:
+                os.rename(entry[0], entry[1])
+            except OSError, (ecode, emsg):
+                script.exit(1, 'Error renaming %s: %s' % (entry[0], emsg))
+
 class PlaylistCommand(MusaCommand):
 
     def __init__(self, script):
@@ -913,6 +989,7 @@ CodecCommand(script)
 CompareCommand(script)
 ConfigCommand(script)
 ConvertCommand(script)
+JoinCommand(script)
 PlaylistCommand(script)
 SyncCommand(script)
 TagsCommand(script)
