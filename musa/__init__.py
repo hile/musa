@@ -26,7 +26,8 @@ def normalized(path,normalization='NFC'):
     on other platform return the original string as unicode
     """
     if sys.platform != 'darwin':
-        return type(path) == unicode and path or unicode(path, 'utf-8')
+        if not isinstance(path, unicode):
+            return unicode(path, 'utf-8')
     if not isinstance(path, unicode):
         path = unicode(path, 'utf-8')
     return unicodedata.normalize(normalization, path)
