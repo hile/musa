@@ -666,7 +666,6 @@ class CopyTagsCommand(MusaCommand):
             try:
                 target_track = Track(glob.glob('%s.*' % (os.path.splitext(tp)[0]))[0])
             except IndexError:
-                print 'No such file: %s' % target_track.path
                 continue
 
             self.clone_tags(source_track, target_track)
