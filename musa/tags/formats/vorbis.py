@@ -148,6 +148,9 @@ class vorbis(TagParser):
                     keys.remove(tag)
         return [x.lower() for x in self.sort_keys(keys)]
 
+    def has_key(self, tag):
+        return tag.lower() in self.keys()
+
     def set_tag(self,item,value):
         """
         All vorbis tags are unicode strings, and there can be multiple
