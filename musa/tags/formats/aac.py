@@ -299,6 +299,14 @@ class aac(TagParser):
                     keys.remove(tag)
         return self.sort_keys(keys)
 
+    def has_key(self, key):
+        """Extended has_key
+
+        Extend has_key with tracknumber info
+
+        """
+        return key in self.keys()
+
     def save(self):
         """
         Save AAC tags to the file
