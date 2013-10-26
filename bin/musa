@@ -648,6 +648,7 @@ class CopyTagsCommand(MusaCommand):
             modified = True
 
         if modified:
+            print 'Saving: %s' % dst.path
             dst.tags.save()
 
     def parse_args(self, args):
@@ -662,10 +663,12 @@ class CopyTagsCommand(MusaCommand):
         for source_track in source:
             track_parts = source_track.path.split(os.sep)
             tp = os.path.join(target.path, os.sep.join(track_parts[len(source_parts):]))
-            target_track = Track(glob.glob('%s.*' % (os.path.splitext(tp)[0]))[0])
-            if not os.path.isfile(target_track.path):
+            try:
+                target_track = Track(glob.glob('%s.*' % (os.path.splitext(tp)[0]))[0])
+            except IndexError:
                 print 'No such file: %s' % target_track.path
                 continue
+
             self.clone_tags(source_track, target_track)
 
 class JoinCommand(MusaCommand):
