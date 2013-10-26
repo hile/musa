@@ -19,7 +19,7 @@ setup(
     zip_safe = False,
     install_requires = [
         'setproctitle', 'lxml','configobj', 'requests',
-        'mutagen','python-musicbrainz2', 'boto>=2.0', 'PIL',
+        'mutagen','python-musicbrainz2', 'boto>=2.0', 'pillow',
         'sqlalchemy', 'pytz'
     ],
     scripts = glob.glob('bin/*'),
