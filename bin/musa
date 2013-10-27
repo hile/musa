@@ -10,17 +10,17 @@ import re
 import shutil
 import argparse
 
+from datetime import datetime, timedelta
+
 from musa import normalized,MusaError
 from musa.cli import MusaScript, MusaCommand, MusaScriptError
 from musa.tree import Tree, Album, Track, TreeError
 from musa.tags import TagError
 from musa.tags.xmltag import XMLTrackTree, XMLTagError
-
 from musa.formats import match_metadata
 from musa.metadata import CoverArt
 from musa.playlist import m3uPlaylist, m3uPlaylistDirectory, PlaylistError
 from musa.tags.albumart import AlbumArt, AlbumArtError
-
 from musa.sync import SyncManager, SyncError
 from musa.transcoder import MusaTranscoder, TranscoderError
 
@@ -624,7 +624,7 @@ class CopyTagsCommand(MusaCommand):
         self.parser.add_argument('target', help='Target tree')
         self.parser.add_argument('--progress-interval', type=int, help='How often report number of processed tracks')
         self.parser.add_argument('--target-extension', help='Target tree filename extension')
-        self.parser.add_argument('-y', '--dry-run', action='store_true', help='List new track names without renaming')
+        self.parser.add_argument('--mtime-compare', action='store_true', help='Use mtime to compare tracks')
 
     def clone_tags(self, src, dst):
         """
@@ -653,6 +653,7 @@ class CopyTagsCommand(MusaCommand):
 
         if modified:
             dst.tags.save()
+        return modified
 
     def parse_args(self, args):
         MusaCommand.parse_args(self, args, skip_targets=True)
@@ -667,6 +668,8 @@ class CopyTagsCommand(MusaCommand):
             target_extension = target_prefix.extensions[0]
 
         processed = 0
+        updated = 0
+        started = datetime.now()
         source_parts = source.path.rstrip(os.sep).split(os.sep)
         for source_track in source:
             processed += 1
@@ -682,7 +685,16 @@ class CopyTagsCommand(MusaCommand):
             if not os.path.isfile(target_track.path):
                 continue
 
-            self.clone_tags(source_track, target_track)
+            if args.mtime_compare and target_track.mtime >= source_track.mtime:
+                continue
+
+            if self.clone_tags(source_track, target_track):
+                updated += 1
+
+        ended = datetime.now()
+        script.log.debug('Processed %d tracks, updated %d tracks in %s seconds' % (
+            processed, updated, timedelta(ended-start).total_seconds()
+        ))
 
 class JoinCommand(MusaCommand):
     re_original = re.compile('^[0-9-]+\s+(?P<name>.*)$')
