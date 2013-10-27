@@ -216,7 +216,6 @@ class TreePrefixes(object):
             for prefix in self:
 
                 if match_existing and not os.path.isdir(prefix.path):
-                    self.log.debug('skip unavailable prefix: %s' % prefix.path)
                     continue
 
                 if prefix.match(path):

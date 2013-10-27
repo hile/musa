@@ -622,6 +622,7 @@ class CopyTagsCommand(MusaCommand):
         MusaCommand.__init__(self, script, name, description, mode_flags)
         self.parser.add_argument('source', help='Source tree')
         self.parser.add_argument('target', help='Target tree')
+        self.parser.add_argument('--progress-interval', type=int, help='How often report number of processed tracks')
         self.parser.add_argument('--target-extension', help='Target tree filename extension')
         self.parser.add_argument('-y', '--dry-run', action='store_true', help='List new track names without renaming')
 
@@ -665,8 +666,13 @@ class CopyTagsCommand(MusaCommand):
                 script.exit(1, 'Error looking up target tree %s' % args.target)
             target_extension = target_prefix.extensions[0]
 
+        processed = 0
         source_parts = source.path.rstrip(os.sep).split(os.sep)
         for source_track in source:
+            processed += 1
+            if args.progress_interval is not None and  processed%args.progress_interval == 0:
+                script.message('Processed: %d tracks' % processed)
+
             track_parts = source_track.path.split(os.sep)
             tp = os.path.join(args.target, os.sep.join(track_parts[len(source_parts):]))
             try:
