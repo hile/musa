@@ -23,8 +23,6 @@ from musa.prefixes import TreePrefixes
 from musa.formats import match_metadata, match_codec
 from musa.tree import Tree, Track, TreeError
 
-logger = logging.getLogger(__name__)
-
 def xterm_title(value, max_length=74, bypass_term_check=False):
     """
     Set title in xterm titlebar to given value, clip the title text to
@@ -48,6 +46,7 @@ class MusaThread(threading.Thread):
     """
     def __init__(self, name):
         threading.Thread.__init__(self)
+        self.log = MusaLogger(name).default_stream
         self.status = 'not running'
         self.setDaemon(True)
         self.setName(name)
@@ -58,11 +57,12 @@ class MusaThread(threading.Thread):
 
 class MusaThreadManager(list):
     def __init__(self, name, threads=None):
+        self.log = MusaLogger(name).default_stream
         self.db = MusaConfigDB()
         self.threads = threads is not None and threads or self.db.get('threads')
 
     def enqueue(self, item):
-        logger.debug('enqueue: %s' % (src.path))
+        self.log.debug('enqueue: %s' % (src.path))
         self.append((src, dst))
 
     def get_entry_handler(self, entry):
@@ -90,6 +90,7 @@ class MusaTagsEditor(MusaThread):
     def __init__(self, tmpfile):
         MusaThread.__init__(self, 'musa-edit')
         self.tmpfile = tmpfile
+        self.log = MusaLogger('tags').default_stream
 
     def run(self):
         self.status = 'edit'
@@ -108,7 +109,6 @@ class MusaScript(object):
     Common musa CLI tool setup class
     """
     def __init__(self, name=None, description=None, epilog=None, debug_flag=True, subcommands=True):
-        self.log = logging.getLogger(__file__)
         self.db = MusaConfigDB()
         self.name = os.path.basename(sys.argv[0])
         setproctitle('%s %s' % (self.name, ' '.join(sys.argv[1:])))
@@ -121,6 +121,7 @@ class MusaScript(object):
             name = self.name
 
         self.logger = MusaLogger(name)
+        self.log = self.logger.default_stream
 
         self.parser = argparse.ArgumentParser(
             prog=name,
@@ -157,7 +158,7 @@ class MusaScript(object):
             active = filter(lambda t: t.name!='MainThread', threading.enumerate())
             if not len(active):
                 break
-            logger.debug('Waiting for %d threads' % len(active))
+            self.log.debug('Waiting for %d threads' % len(active))
             time.sleep(poll_interval)
 
     def exit(self, value=0, message=None):
@@ -244,6 +245,7 @@ class MusaCommand(object):
         self.script = script
 
         self.logger = MusaLogger(name)
+        self.log = self.logger.default_stream
 
         if not isinstance(mode_flags, list):
             raise MusaScriptError('Mode flags must be a list')
@@ -262,7 +264,7 @@ class MusaCommand(object):
             try:
                 return track.tags
             except TreeError, emsg:
-                logger.debug('Error parsing tags from %s: %s' % (track.path, emsg))
+                self.log.debug('Error parsing tags from %s: %s' % (track.path, emsg))
                 return None
         return None
 
@@ -273,7 +275,7 @@ class MusaCommand(object):
         """
         Execute command for all tracks in trees or track list
         """
-        logger.debug('Processing %s trees and %s tracks' % (len(trees), len(tracks)))
+        self.log.debug('Processing %s trees and %s tracks' % (len(trees), len(tracks)))
 
         for tree in trees:
             for track in tree:
