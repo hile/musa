@@ -6,9 +6,10 @@ Guessing of supported file formats and codecs based on extensions
 """
 
 import os
+
 from musa.config import MusaConfigDB
 from musa.log import MusaLogger
-from musa import normalized,MusaError,CommandPathCache
+from musa import normalized, MusaError, CommandPathCache
 from musa.metadata import Metadata
 
 logger = MusaLogger('formats').default_stream
@@ -29,7 +30,7 @@ def filter_available_command_list(commands):
     available = []
     for cmd in commands:
         try:
-            executable = cmd.command.split(' ',1)[0]
+            executable = cmd.command.split(' ', 1)[0]
         except IndexError:
             executable = cmd.command
             pass
@@ -61,11 +62,11 @@ def match_metadata(path):
     return None
 
 class path_string(unicode):
-    def __init__(self,path):
-        if isinstance(path,unicode):
-            unicode.__init__(self,normalized(path).encode('utf-8'))
+    def __init__(self, path):
+        if isinstance(path, unicode):
+            unicode.__init__(self, normalized(path).encode('utf-8'))
         else:
-            unicode.__init__(self,normalized(path))
+            unicode.__init__(self, normalized(path))
 
     @property
     def exists(self):
@@ -104,7 +105,7 @@ class MusaFileFormat(object):
 
     """
 
-    def __init__(self,path):
+    def __init__(self, path):
         self.db = MusaConfigDB()
         self.log =  MusaLogger('formats').default_stream
         self.path = path_string(path)
@@ -126,7 +127,7 @@ class MusaFileFormat(object):
                 self.description = 'unknown file format'
 
     def __repr__(self):
-        return '%s %s' % (self.codec,self.path)
+        return '%s %s' % (self.codec, self.path)
 
     @property
     def directory(self):
@@ -165,9 +166,9 @@ class MusaFileFormat(object):
             classpath = TAG_PARSERS[self.codec.name]
             module_path = '.'.join(classpath.split('.')[:-1])
             class_name = classpath.split('.')[-1]
-            m = __import__(module_path,globals(),fromlist=[class_name])
-            return getattr(m,class_name)
-        except KeyError,emsg:
+            m = __import__(module_path, globals(), fromlist=[class_name])
+            return getattr(m, class_name)
+        except KeyError, emsg:
             #logger.debug('Error loading tag parser for %s' % self.path)
             return None
 

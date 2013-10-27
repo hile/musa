@@ -11,16 +11,10 @@ import unicodedata
 
 from musa.defaults import MUSA_USER_DIR
 
-__all__ = [
-    'cli', 'config', 'defaults', 'formats', 'log', 'metadata', 'models', 'playlist', 'prefixes', 'sync', 'tags', 'transcoder', 'tree'
-]
-
 class MusaError(Exception):
+    pass
 
-    def __str__(self):
-        return self.args[0]
-
-def normalized(path,normalization='NFC'):
+def normalized(path, normalization='NFC'):
     """
     Return given path value as normalized unicode string on OS/X,
     on other platform return the original string as unicode

@@ -14,14 +14,10 @@ from musa.log import MusaLogger
 from musa.formats import MusaFileFormat, path_string, match_codec, match_metadata
 
 
-class PlaylistError(Exception):
-
-    def __str__(self):
-        return self.args[0]
-
+class PlaylistError(Exception): pass
 
 class Playlist(list):
-    def __init__(self,path,parent,unique=True):
+    def __init__(self, path, parent, unique=True):
         self.log = MusaLogger('musa').default_stream
         self.parent = parent
         self.path = normalized(os.path.realpath(path))
@@ -37,7 +33,7 @@ class Playlist(list):
     def write(self):
         raise NotImplementedError('You must implement writing in subclass')
 
-    def __insert(self,path,position=None):
+    def __insert(self, path, position=None):
         if self.unique and self.count(path) > 0:
             raise PlaylistError('File already on the list: %s' % path)
 
@@ -73,7 +69,7 @@ class Playlist(list):
             return self.parent.relative_path(self.path)
         return self.path
 
-    def add(self,path,position=None,recursive=False):
+    def add(self, path, position=None, recursive=False):
         path = normalized(os.path.realpath(path))
 
         if os.path.isfile(path):
@@ -94,7 +90,7 @@ class Playlist(list):
 
 
 class m3uPlaylist(Playlist):
-    def __init__(self,path,parent=None,unique=True):
+    def __init__(self, path, parent=None, unique=True):
         Playlist.__init__(self, path, parent, unique)
 
     def __len__(self):
@@ -154,7 +150,7 @@ class m3uPlaylist(Playlist):
 
 
 class m3uPlaylistDirectory(list):
-    def __init__(self,path,parent=None):
+    def __init__(self, path, parent=None):
         self.log = MusaLogger('musa').default_stream
         self.parent = parent
         self.path = path

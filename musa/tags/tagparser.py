@@ -8,7 +8,8 @@ Tag metadata reader and writer classes
 import os
 import base64
 import json
-from datetime import datetime,timedelta
+import logging
+from datetime import datetime, timedelta
 
 from musa import normalized
 from musa.formats import MusaFileFormat
@@ -20,11 +21,13 @@ from musa.tags.albumart import AlbumArt, AlbumArtError
 
 __all__ = ['aac', 'flac', 'mp3', 'vorbis']
 
+logger = logging.getLogger(__file__)
+
 # Format parsers for printing out various year tag formats supported internally
 YEAR_FORMATTERS = [
-    lambda x: unicode('%s'% int(x),'utf-8'),
-    lambda x: unicode('%s'% datetime.strptime(x,'%Y-%m-%d').strftime('%Y'),'utf-8'),
-    lambda x: unicode('%s'% datetime.strptime(x,'%Y-%m-%dT%H:%M:%SZ').strftime('%Y'),'utf-8'),
+    lambda x: unicode('%s'% int(x), 'utf-8'),
+    lambda x: unicode('%s'% datetime.strptime(x, '%Y-%m-%d').strftime('%Y'), 'utf-8'),
+    lambda x: unicode('%s'% datetime.strptime(x, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y'), 'utf-8'),
 ]
 
 class TagParser(dict):
@@ -32,8 +35,7 @@ class TagParser(dict):
     """
     Parent class for tag parser implementations
     """
-    def __init__(self,codec,path,tag_map=None):
-        self.log = MusaLogger('musa').default_stream
+    def __init__(self, codec, path, tag_map=None):
         dict.__init__(self)
         self.codec = codec
         self.path = normalized(os.path.realpath(path))
@@ -92,7 +94,7 @@ class TagParser(dict):
         for tag in fields:
             if tag not in self.entry.keys():
                 continue
-            self.log.debug('%s: remove tag %s' % (self.path, item))
+            logger.debug('%s: remove tag %s' % (self.path, item))
             del self.entry[tag]
             self.modified = True
 
@@ -136,7 +138,7 @@ class TagParser(dict):
                 value = value[0]
 
         # Skip non-string tags
-        if not isinstance(value,basestring):
+        if not isinstance(value, basestring):
             return None
 
         if tag=='year':
@@ -144,7 +146,7 @@ class TagParser(dict):
             for fmt in YEAR_FORMATTERS:
                 try:
                     return fmt(value)
-                except ValueError,emsg:
+                except ValueError, emsg:
                     pass
 
         return value
@@ -247,7 +249,7 @@ class TagParser(dict):
 
     def items(self):
         """
-        Return tag,value pairs using tag_map keys.
+        Return tag, value pairs using tag_map keys.
         If tag has multiple values, only first one is returned.
         """
         tags = []
@@ -285,7 +287,7 @@ class TagParser(dict):
         """
         return XMLTags(self.as_dict())
 
-    def to_json(self,indent=2):
+    def to_json(self, indent=2):
         """
         Return tags formatted as json
         """
@@ -295,7 +297,7 @@ class TagParser(dict):
                 'filename': self.path,
                 'modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
                 'size': stat.st_size,
-                'tags': [{'tag':k,'value':v} for k,v in self.items()]
+                'tags': [{'tag':k, 'value':v} for k, v in self.items()]
             },
             ensure_ascii=False,
             indent=indent,
@@ -341,7 +343,7 @@ class TagParser(dict):
         for tag in self.keys():
             del self[tag]
         if self.modified:
-            self.log.debug('Cleared all tags from file')
+            logger.debug('Cleared all tags from file')
             self.save()
 
     def remove_unknown_tags(self):
@@ -363,14 +365,17 @@ class TagParser(dict):
                     tag = getattr(self, attr)
                     tag.save_tag()
                 except ValueError, emsg:
-                    self.log.debug('Error processing %s: %s' % (attr, emsg))
+                    logger.debug('Error processing %s: %s' % (attr, emsg))
+
             if not self.modified:
-                self.log.debug('tags not modified')
+                logger.debug('tags not modified')
                 return
+
             # TODO - replace with copying of file to new inode
             self.entry.save()
         except OSError, (ecode, emsg):
             raise TagError(emsg)
+
         except IOError, (ecode, emsg):
             raise TagError(emsg)
 
@@ -380,7 +385,6 @@ class TrackAlbumart(object):
     Parent class for common albumart operations
     """
     def __init__(self, track):
-        self.log = MusaLogger('musa').default_stream
         self.track = track
         self.modified = False
         self.albumart = None
@@ -440,7 +444,6 @@ class TrackNumberingTag(object):
     Fields should be set and read from attributes 'value' and 'total'
     """
     def __init__(self, track, tag):
-        self.log = MusaLogger('musa').default_stream
         self.track = track
         self.tag = tag
         self.f_value = None
@@ -488,7 +491,7 @@ class TrackNumberingTag(object):
         """
         raise NotImplementedError('save_tag must be implemented in child class')
 
-def Tags(path,fileformat=None):
+def Tags(path, fileformat=None):
     """
     Loader for file metadata tags. Tag reading and writing for various
     file formats is implemented by tag formatter classes in module

@@ -192,9 +192,9 @@ def parsedate(value):
     tval = None
     for fmt in DATE_FORMATS:
         try:
-            tval = time.strptime(value,fmt)
+            tval = time.strptime(value, fmt)
             break
-        except ValueError,emsg:
+        except ValueError, emsg:
             continue
     return tval
 

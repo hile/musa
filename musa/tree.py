@@ -93,7 +93,7 @@ class IterableTrackFolder(object):
         iterable.__delslice__(0, len(iterable))
         self.invalid_paths.__delslice__(0, len(self.invalid_paths))
 
-    def relative_path(self,item=None):
+    def relative_path(self, item=None):
         """Returns relative path of this iterable item"""
 
         if item is not None:
@@ -184,7 +184,7 @@ class Tree(IterableTrackFolder):
         stop = long(time.mktime(time.localtime()))
         self.log.debug('loaded %d files in %d seconds' % (len(self.files), (stop-start)))
 
-    def filter_tracks(self,regexp=None,re_path=True,re_file=True,as_tracks=False):
+    def filter_tracks(self, regexp=None, re_path=True, re_file=True, as_tracks=False):
         if not len(self.files):
             self.load()
 
@@ -321,7 +321,7 @@ class MetaDataFile(object):
 
     """
 
-    def __init__(self,path,metadata=None):
+    def __init__(self, path, metadata=None):
         self.config = MusaConfigDB()
         if metadata is None:
             metadata = match_metadata(path)
@@ -400,7 +400,7 @@ class Track(MusaFileFormat):
 
         return tracks
 
-    def get_decoder_command(self,wav_path=None):
+    def get_decoder_command(self, wav_path=None):
         if wav_path is None:
             wav_path = '%s.wav' % os.path.splitext(self.path)[0]
         if wav_path == self.path:
@@ -416,7 +416,7 @@ class Track(MusaFileFormat):
         decoder[decoder.index('FILE')] = self.path
         return decoder
 
-    def get_encoder_command(self,wav_path=None):
+    def get_encoder_command(self, wav_path=None):
         if wav_path is None:
             wav_path = '%s.wav' % os.path.splitext(self.path)[0]
         if wav_path == self.path:

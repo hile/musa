@@ -20,8 +20,6 @@ FIELD_CONVERT_MAP = {
 
 
 class MusaConfigDB(object):
-
-
     """MusaConfigDB
 
     Musa database settings API.
@@ -29,7 +27,7 @@ class MusaConfigDB(object):
     """
 
     __db_instance = None
-    def __init__(self,path=None):
+    def __init__(self, path=None):
 
         if not MusaConfigDB.__db_instance:
             MusaConfigDB.__db_instance = MusaConfigDB.MusaConfigInstance(path)
@@ -53,7 +51,7 @@ class MusaConfigDB(object):
             if not treetypes:
                 treetypes = []
                 for name,description in DEFAULT_TREE_TYPES.items():
-                    treetypes.append(DBTreeType(name=name,description=description))
+                    treetypes.append(DBTreeType(name=name, description=description))
                 self.add(treetypes)
                 self.commit()
 
@@ -69,7 +67,7 @@ class MusaConfigDB(object):
             existing = self.session.query(Setting).filter(Setting.key==key).first()
             if existing:
                 self.session.delete(existing)
-            self.session.add(Setting(key=key,value=value))
+            self.session.add(Setting(key=key, value=value))
             self.session.commit()
 
         def __getitem__(self, key):
@@ -96,7 +94,7 @@ class MusaConfigDB(object):
             return [s.key for s in self.session.query(Setting).all()]
 
         def items(self):
-            return [(s.key,s.value) for s in self.session.query(Setting).all()]
+            return [(s.key, s.value) for s in self.session.query(Setting).all()]
 
         def values(self):
             return [s.value for s in self.session.query(Setting).all()]
@@ -124,10 +122,10 @@ class SyncConfiguration(dict):
     def default_targets(self):
         return [k for k in self.keys() if self[k]['defaults']]
 
-    def create_sync_target(self,name,synctype,src,dst,flags=None,defaults=False):
-        self[name] = self.db.register_sync_target(name,synctype,src,dst,flags,defaults)
+    def create_sync_target(self, name, synctype, src, dst, flags=None, defaults=False):
+        self[name] = self.db.register_sync_target(name, synctype, src, dst, flags, defaults)
 
-    def import_legacy_config(self,cleanup=False):
+    def import_legacy_config(self, cleanup=False):
         path = LEGACY_SYNC_CONFIG
         if not os.path.isfile(path):
             return
@@ -144,7 +142,7 @@ class SyncConfiguration(dict):
             if existing:
                 continue
 
-            entry = self.db.sync.create_sync_target(name,**target)
+            entry = self.db.sync.create_sync_target(name, **target)
 
         try:
             os.unlink(path)
@@ -173,10 +171,10 @@ class CodecConfiguration(dict):
             if name  in self.keys():
                 continue
             self.log.debug('Import default codec: %s' % name)
-            codec = self.db.register_codec(name,**settings)
+            codec = self.db.register_codec(name, **settings)
             self[str(codec.name)] = codec
 
-    def extensions(self,codec):
+    def extensions(self, codec):
         if codec in self.keys():
             return [codec] + [e.extension for e in self[codec].extensions]
         return []

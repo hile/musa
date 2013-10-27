@@ -5,11 +5,11 @@ Vorbis file tag parser
 
 """
 
-from mutagen.oggvorbis import OggVorbis,OggVorbisHeaderError
+from mutagen.oggvorbis import OggVorbis, OggVorbisHeaderError
 
 from musa.tags import TagError
-from musa.tags.tagparser import TagParser,TrackNumberingTag
-from musa.tags.albumart import AlbumArt,AlbumArtError
+from musa.tags.tagparser import TagParser, TrackNumberingTag
+from musa.tags.albumart import AlbumArt, AlbumArtError
 
 VORBIS_ALBUMART_TAG = 'METADATA_BLOCK_PICTURE'
 
@@ -66,9 +66,9 @@ class VorbisNumberingTag(TrackNumberingTag):
     The tag can be either a single number or two numbers separated by /
     If total is given, the value must be integer.
     """
-    def __init__(self,track,tag):
-        TrackNumberingTag.__init__(self,track,tag)
-        if not isinstance(track,vorbis):
+    def __init__(self, track, tag):
+        TrackNumberingTag.__init__(self, track, tag)
+        if not isinstance(track, vorbis):
             raise TagError('Track is not instance of vorbis')
 
         if not self.track.entry.has_key(self.tag):
@@ -76,7 +76,7 @@ class VorbisNumberingTag(TrackNumberingTag):
 
         value = self.track.entry[self.tag]
         try:
-            value,total = value[0].split('/',1)
+            value, total = value[0].split('/', 1)
         except ValueError:
             total = None
         self.value = value
@@ -96,21 +96,21 @@ class vorbis(TagParser):
     """
     Class for processing Ogg Vorbis file tags
     """
-    def __init__(self,codec,path):
-        TagParser.__init__(self,codec,path,tag_map=VORBIS_STANDARD_TAGS)
+    def __init__(self, codec, path):
+        TagParser.__init__(self, codec, path, tag_map=VORBIS_STANDARD_TAGS)
 
         try:
             self.entry = OggVorbis(path)
-        except IOError,e:
-            raise TagError('Error opening %s: %s' % (path,str(e)))
-        except OggVorbisHeaderError,e:
-            raise TagError('Error opening %s: %s' % (path,str(e)))
+        except IOError, emsg:
+            raise TagError('Error opening %s: %s' % (path, str(emsg)))
+        except OggVorbisHeaderError, emsg:
+            raise TagError('Error opening %s: %s' % (path, str(emsg)))
 
         self.albumart_obj = None
-        self.track_numbering = VorbisNumberingTag(self,'TRACKNUMBER')
-        self.disk_numbering = VorbisNumberingTag(self,'DISKNUMBER')
+        self.track_numbering = VorbisNumberingTag(self, 'TRACKNUMBER')
+        self.disk_numbering = VorbisNumberingTag(self, 'DISKNUMBER')
 
-    def __getitem__(self,item):
+    def __getitem__(self, item):
         if item == 'tracknumber':
             return [unicode('%d' % self.track_numbering.value)]
         if item == 'totaltracks':
@@ -119,10 +119,10 @@ class vorbis(TagParser):
             return [unicode('%d' % self.disk_numbering.value)]
         if item == 'totaldisks':
             return [unicode('%d' % self.disk_numbering.total)]
-        return TagParser.__getitem__(self,item)
+        return TagParser.__getitem__(self, item)
 
-    def __field2tag__(self,field):
-        return TagParser.__field2tag__(self,field.upper())
+    def __field2tag__(self, field):
+        return TagParser.__field2tag__(self, field.upper())
 
     def keys(self):
         """
@@ -148,10 +148,10 @@ class vorbis(TagParser):
                     keys.remove(tag)
         return [x.lower() for x in self.sort_keys(keys)]
 
-    def has_key(self, tag):
+    def has_key(self,  tag):
         return tag.lower() in self.keys()
 
-    def set_tag(self,item,value):
+    def set_tag(self, item, value):
         """
         All vorbis tags are unicode strings, and there can be multiple
         tags with same name.
@@ -170,7 +170,7 @@ class vorbis(TagParser):
             self.disk_numbering.total = value
             return
 
-        if not isinstance(value,list):
+        if not isinstance(value, list):
             value = [value]
 
         tags = self.__tag2fields__(item)
@@ -184,8 +184,8 @@ class vorbis(TagParser):
             if VORBIS_TAG_FORMATTERS.has_key(item):
                 entries.append(VORBIS_TAG_FORMATTERS[item](v))
             else:
-                if not isinstance(v,unicode):
-                    v = unicode(v,'utf-8')
+                if not isinstance(v, unicode):
+                    v = unicode(v, 'utf-8')
                 entries.append(v)
         self.entry[item] = entries
         self.modified = True

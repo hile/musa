@@ -31,10 +31,7 @@ for i in range(0, len(ITUNES_PARTS)+1):
         break
 
 
-class PrefixError(Exception):
-
-    def __str__(self):
-        return self.args[0]
+class PrefixError(Exception): pass
 
 
 class MusicTreePrefix(object):
@@ -44,7 +41,7 @@ class MusicTreePrefix(object):
     Tree path prefix matcher
 
     """
-    def __init__(self,path,extensions=[]):
+    def __init__(self, path, extensions=[]):
         self.log = MusaLogger('musa').default_stream
         self.path = path.rstrip(os.sep)
         if not isinstance(extensions, list):
@@ -57,8 +54,8 @@ class MusicTreePrefix(object):
             elif not isinstance(ext, basestring):
                 raise PrefixError('Extensions must be a list of strings')
 
-            if not isinstance(ext,unicode):
-                ext = unicode(ext,'utf-8')
+            if not isinstance(ext, unicode):
+                ext = unicode(ext, 'utf-8')
 
             if self.extensions.count(ext)==0:
                 self.extensions.append(ext)
@@ -85,8 +82,8 @@ class MusicTreePrefix(object):
         return False
 
     def match_extension(self, extension):
-        if not isinstance(extension,unicode):
-            extension = unicode(extension,'utf-8')
+        if not isinstance(extension, unicode):
+            extension = unicode(extension, 'utf-8')
         return extension in self.extensions
 
     def relative_path(self, path):
@@ -125,7 +122,7 @@ class TreePrefixes(object):
             self.db = MusaConfigDB()
 
             for path in DEFAULT_PATHS:
-                for name,codec in self.db.codecs.items():
+                for name, codec in self.db.codecs.items():
                     prefix_path = os.path.join(path, name)
                     prefix = MusicTreePrefix(prefix_path, [codec.name] + codec.extensions)
                     self.register_prefix(prefix)
@@ -137,7 +134,6 @@ class TreePrefixes(object):
 
             itunes_prefix = MusicTreePrefix(ITUNES_MUSIC, self.db.codecs.extensions('m4a'))
             self.register_prefix(itunes_prefix)
-            #self.sort(lambda x, y: cmp(x.path, y.path))
             self.load_user_config()
 
         def load_user_config(self):
@@ -184,7 +180,7 @@ class TreePrefixes(object):
 
             raise IndexError('Prefix is not registered')
 
-        def register_prefix(self,prefix,extensions=[],prepend=False):
+        def register_prefix(self, prefix, extensions=[], prepend=False):
             if isinstance(prefix, basestring):
                 prefix = MusicTreePrefix(prefix, extensions)
 
@@ -202,7 +198,7 @@ class TreePrefixes(object):
                 else:
                     self.append(prefix)
 
-        def match_extension(self,extension,match_existing=False):
+        def match_extension(self, extension, match_existing=False):
             for prefix in self:
                 if match_existing and not os.path.isdir(prefix.path):
                     continue
@@ -212,7 +208,7 @@ class TreePrefixes(object):
 
             return None
 
-        def match(self,path,match_existing=False):
+        def match(self, path, match_existing=False):
             for prefix in self:
 
                 if match_existing and not os.path.isdir(prefix.path):

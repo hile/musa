@@ -10,7 +10,7 @@ import hashlib
 import base64
 import json
 import pytz
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 from sqlite3 import Connection as SQLite3Connection
 from sqlalchemy import create_engine, event, Column, ForeignKey, Integer, Boolean, String, Date
@@ -54,7 +54,7 @@ class Base64Field(TypeDecorator):
 
     impl = String
 
-    def process_bind_param(self,value, dialect):
+    def process_bind_param(self, value, dialect):
         if value is None:
             return value
         return base64.encode(value)
@@ -124,57 +124,57 @@ class Codec(Base):
     def __repr__(self):
         return self.name
 
-    def register_extension(self,session,extension):
+    def register_extension(self, session, extension):
         existing = session.query(Extension).filter(Extension.extension==extension).first()
         if existing:
             raise MusaError('Extension already registered: %s' % extension)
-        session.add(Extension(codec=self,extension=extension))
+        session.add(Extension(codec=self, extension=extension))
         session.commit()
 
-    def unregister_extension(self,session,extension):
+    def unregister_extension(self, session, extension):
         existing = session.query(Extension).filter(Extension.extension==extension).first()
         if not existing:
             raise MusaError('Extension was not registered: %s' % extension)
         session.delete(existing)
         session.commit()
 
-    def register_decoder(self,session,command):
-        existing = session.query(Decoder).filter(Decoder.codec==self,Decoder.command==command).first()
+    def register_decoder(self, session, command):
+        existing = session.query(Decoder).filter(Decoder.codec==self, Decoder.command==command).first()
         if existing:
             raise MusaError('Decoder already registered: %s' % command)
-        session.add(Decoder(codec=self,command=command))
+        session.add(Decoder(codec=self, command=command))
         session.commit()
 
-    def unregister_decoder(self,session,command):
-        existing = session.query(Decoder).filter(Decoder.codec==self,Decoder.command==command).first()
+    def unregister_decoder(self, session, command):
+        existing = session.query(Decoder).filter(Decoder.codec==self, Decoder.command==command).first()
         if not existing:
             raise MusaError('Decoder was not registered: %s' % command)
         session.delete(existing)
         session.commit()
 
-    def register_encoder(self,session,command):
-        existing = session.query(Encoder).filter(Encoder.codec==self,Encoder.command==command).first()
+    def register_encoder(self, session, command):
+        existing = session.query(Encoder).filter(Encoder.codec==self, Encoder.command==command).first()
         if existing:
             raise MusaError('Encoder already registered: %s' % command)
-        session.add(Encoder(codec=self,command=command))
+        session.add(Encoder(codec=self, command=command))
         session.commit()
 
-    def unregister_encoder(self,session,command):
-        existing = session.query(Encoder).filter(Encoder.codec==self,Encoder.command==command).first()
+    def unregister_encoder(self, session, command):
+        existing = session.query(Encoder).filter(Encoder.codec==self, Encoder.command==command).first()
         if not existing:
             raise MusaError('Encoder was not registered: %s' % command)
         session.delete(existing)
         session.commit()
 
-    def register_formattester(self,session,command):
-        existing = session.query(FormatTester).filter(FormatTester.codec==self,FormatTester.command==command).first()
+    def register_formattester(self, session, command):
+        existing = session.query(FormatTester).filter(FormatTester.codec==self, FormatTester.command==command).first()
         if existing:
             raise MusaError('Format tester already registered: %s' % command)
-        session.add(FormatTester(codec=self,command=command))
+        session.add(FormatTester(codec=self, command=command))
         session.commit()
 
-    def unregister_formattester(self,session,command):
-        existing = session.query(FormatTester).filter(FormatTester.codec==self,FormatTester.command==command).first()
+    def unregister_formattester(self, session, command):
+        existing = session.query(FormatTester).filter(FormatTester.codec==self, FormatTester.command==command).first()
         if not existing:
             raise MusaError('Format tester was not registered: %s' % command)
         session.delete(existing)
@@ -193,8 +193,12 @@ class Extension(Base):
     id = Column(Integer, primary_key=True)
     extension = Column(SafeUnicode)
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship('Codec', single_parent=False,
-        backref=backref('extensions', order_by=extension, cascade='all, delete, delete-orphan')
+    codec = relationship('Codec',
+        single_parent=False,
+        backref=backref('extensions',
+            order_by=extension,
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -213,9 +217,13 @@ class FormatTester(Base):
     command = Column(SafeUnicode)
 
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship('Codec', single_parent=False,
-        backref=backref('formattesters', order_by=command, cascade='all, delete, delete-orphan')
+    codec = relationship('Codec',
+        single_parent=False,
+        backref=backref('formattesters',
+            order_by=command,
+            cascade='all, delete, delete-orphan'
         )
+    )
 
     def __repr__(self):
         return '%s format tester: %s' % (self.codec.name, self.command)
@@ -235,9 +243,13 @@ class Decoder(Base):
     priority = Column(Integer)
     command = Column(SafeUnicode)
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship('Codec', single_parent=False,
-        backref=backref('decoders', order_by=priority, cascade='all, delete, delete-orphan')
+    codec = relationship('Codec',
+        single_parent=False,
+        backref=backref('decoders',
+            order_by=priority,
+            cascade='all, delete, delete-orphan'
         )
+    )
 
     def __repr__(self):
         return '%s decoder: %s' % (self.codec.name, self.command)
@@ -257,8 +269,12 @@ class Encoder(Base):
     priority = Column(Integer)
     command = Column(SafeUnicode)
     codec_id = Column(Integer, ForeignKey('codecs.id'), nullable=False)
-    codec = relationship('Codec', single_parent=False,
-        backref=backref('encoders', order_by=priority, cascade='all, delete, delete-orphan')
+    codec = relationship('Codec',
+        single_parent=False,
+        backref=backref('encoders',
+            order_by=priority,
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -282,7 +298,7 @@ class DBPlaylistSource(Base):
     def __repr__(self):
         return '%s: %s' % (self.name, self.path)
 
-    def update(self,session,source):
+    def update(self, session, source):
         for playlist in source:
 
             directory = os.path.realpath(playlist.directory)
@@ -307,9 +323,9 @@ class DBPlaylistSource(Base):
 
             playlist.read()
             tracks = []
-            for index,path in enumerate(playlist):
+            for index, path in enumerate(playlist):
                 position = index+1
-                tracks.append(DBPlaylistTrack(playlist=db_playlist,path=path,position=position))
+                tracks.append(DBPlaylistTrack(playlist=db_playlist, path=path, position=position))
             session.add_all(tracks)
             db_playlist.updated = datetime.now()
             session.commit()
@@ -334,8 +350,12 @@ class DBPlaylist(Base):
     description = Column(SafeUnicode)
 
     parent_id = Column(Integer, ForeignKey('playlist_sources.id'), nullable=False)
-    parent = relationship('DBPlaylistSource', single_parent=False,
-        backref=backref('playlists', order_by=[folder, name], cascade='all, delete, delete-orphan')
+    parent = relationship('DBPlaylistSource',
+        single_parent=False,
+        backref=backref('playlists',
+            order_by=[folder, name],
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -360,8 +380,12 @@ class DBPlaylistTrack(Base):
     path = Column(SafeUnicode)
 
     playlist_id = Column(Integer, ForeignKey('playlists.id'), nullable=False)
-    playlist = relationship('DBPlaylist', single_parent=False,
-        backref=backref('tracks', order_by=position, cascade='all, delete, delete-orphan')
+    playlist = relationship('DBPlaylist',
+        single_parent=False,
+        backref=backref('tracks',
+            order_by=position,
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -397,31 +421,35 @@ class DBTree(Base):
     __tablename__ = 'trees'
 
     id = Column(Integer, primary_key=True)
-    path = Column(SafeUnicode,unique=True)
+    path = Column(SafeUnicode, unique=True)
     description = Column(SafeUnicode)
 
     type_id = Column(Integer, ForeignKey('treetypes.id'), nullable=True)
-    type = relationship('DBTreeType', single_parent=True,
-        backref=backref('trees', order_by=path, cascade='all, delete, delete-orphan')
+    type = relationship('DBTreeType',
+        single_parent=True,
+        backref=backref('trees',
+            order_by=path,
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
         return self.path
 
-    def album_count(self,session):
+    def album_count(self, session):
         return session.query(DBAlbum).filter(DBAlbum.tree==self).count()
 
-    def song_count(self,session):
+    def song_count(self, session):
         return session.query(DBTrack).filter(DBTrack.tree==self).count()
 
-    def tag_count(self,session):
+    def tag_count(self, session):
         return session.query(DBTag).filter(DBTrack.tree==self).filter(DBTag.track_id==DBTrack.id).count()
 
-    def update(self,session,tree,update_checksum=True):
+    def update(self, session, tree, update_checksum=True):
         """
         Update tracks in database from loaded musa tree instance
         """
-        added,updated,deleted = 0,0,0
+        added, updated, deleted = 0, 0, 0
 
         albums = tree.as_albums()
         album_paths = [a.path for a in albums]
@@ -437,7 +465,7 @@ class DBTree(Base):
 
             if db_album is None:
                 logger.debug('Added album: %s' % album.path)
-                db_album = DBAlbum(tree=self,directory=album.path, mtime=album.mtime)
+                db_album = DBAlbum(tree=self, directory=album.path, mtime=album.mtime)
                 session.add(db_album)
 
             elif db_album.mtime!=album.mtime:
@@ -461,12 +489,12 @@ class DBTree(Base):
                         mtime=track.mtime,
                         deleted=False,
                     )
-                    db_track.update(session,track)
+                    db_track.update(session, track)
                     added +=1
 
                 elif db_track.mtime != track.mtime:
                     logger.debug('Updated track: %s' % track.path)
-                    db_track.update(session,track)
+                    db_track.update(session, track)
                     updated += 1
 
                 elif not db_track.checksum and update_checksum:
@@ -496,9 +524,9 @@ class DBTree(Base):
             deleted += 1
         session.commit()
 
-        return added,updated,deleted
+        return added, updated, deleted
 
-    def match(self,session,match):
+    def match(self, session, match):
         """Match database tracks
 
         Return tracks matching given tag value.
@@ -540,8 +568,12 @@ class DBAlbum(Base):
     directory = Column(SafeUnicode)
     mtime = Column(Integer)
     tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
-    tree = relationship('DBTree', single_parent=False,
-        backref=backref('albums', order_by=directory, cascade='all, delete, delete-orphan')
+    tree = relationship('DBTree',
+        single_parent=False,
+        backref=backref('albums',
+            order_by=directory,
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -563,14 +595,14 @@ class DBAlbum(Base):
         return os.path.isdir(self.directory)
 
     @property
-    def modified_isoformat(self,tz=None):
+    def modified_isoformat(self, tz=None):
         if self.mtime is None:
             return None
 
         tval = datetime.fromtimestamp(self.mtime).replace(tzinfo=pytz.utc)
 
         if tz is not None:
-            if isinstance(tz,basestring):
+            if isinstance(tz, basestring):
                 tval = tval.astimezone(pytz.timezone(tz))
             else:
                 tval = tval.astimezone(tz)
@@ -605,8 +637,11 @@ class DBAlbumArt(Base):
     albumart = Column(Base64Field)
 
     album_id = Column(Integer, ForeignKey('albums.id'), nullable=True)
-    album = relationship('DBAlbum', single_parent=False,
-        backref=backref('albumarts', cascade='all, delete, delete-orphan')
+    album = relationship('DBAlbum',
+        single_parent=False,
+        backref=backref('albumarts',
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -633,12 +668,20 @@ class DBTrack(Base):
     deleted = Column(Boolean)
 
     tree_id = Column(Integer, ForeignKey('trees.id'), nullable=True)
-    tree = relationship('DBTree', single_parent=False,
-        backref=backref('tracks', order_by=[directory, filename], cascade='all, delete, delete-orphan')
+    tree = relationship('DBTree',
+        single_parent=False,
+        backref=backref('tracks',
+            order_by=[directory, filename],
+            cascade='all, delete, delete-orphan'
+        )
     )
     album_id = Column(Integer, ForeignKey('albums.id'), nullable=True)
-    album = relationship('DBAlbum', single_parent=False,
-        backref=backref('tracks', order_by=[directory,filename], cascade='all, delete, delete-orphan')
+    album = relationship('DBAlbum',
+        single_parent=False,
+        backref=backref('tracks',
+            order_by=[directory, filename],
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -646,11 +689,11 @@ class DBTrack(Base):
 
     @property
     def path(self):
-        return os.path.join(self.directory,self.filename)
+        return os.path.join(self.directory, self.filename)
 
     @property
     def relative_path(self):
-        path = os.path.join(self.directory,self.filename)
+        path = os.path.join(self.directory, self.filename)
         if self.tree and path[:len(self.tree.path)]==self.tree.path:
             path = path[len(self.tree.path):].lstrip(os.sep)
         return path
@@ -660,33 +703,33 @@ class DBTrack(Base):
         return os.path.isfile(self.path)
 
     @property
-    def modified_isoformat(self,tz=None):
+    def modified_isoformat(self, tz=None):
         if self.mtime is None:
             return None
 
         tval = datetime.fromtimestamp(self.mtime).replace(tzinfo=pytz.utc)
 
         if tz is not None:
-            if isinstance(tz,basestring):
+            if isinstance(tz, basestring):
                 tval = tval.astimezone(pytz.timezone(tz))
             else:
                 tval = tval.astimezone(tz)
 
         return tval.isoformat()
 
-    def update(self,session,track,update_checksum=True):
+    def update(self, session, track, update_checksum=True):
         self.mtime = track.mtime
         for tag in session.query(DBTag).filter(DBTag.track == self):
             session.delete(tag)
 
-        for tag,value in track.tags.items():
-            session.add(DBTag(track=self,tag=tag,value=value))
+        for tag, value in track.tags.items():
+            session.add(DBTag(track=self, tag=tag, value=value))
 
         if update_checksum:
             self.update_checksum(session)
 
-    def update_checksum(self,session):
-        with open(self.path,'rb') as fd:
+    def update_checksum(self, session):
+        with open(self.path, 'rb') as fd:
             m = hashlib.md5()
             m.update(fd.read())
             self.checksum = m.hexdigest()
@@ -698,7 +741,7 @@ class DBTrack(Base):
             'filename': self.path,
             'md5': self.checksum,
             'modified': self.modified_isoformat,
-            'tags': dict((t.tag,t.value) for t in self.tags)
+            'tags': dict((t.tag, t.value) for t in self.tags)
         })
 
 
@@ -718,8 +761,12 @@ class DBTag(Base):
     base64_encoded=Column(Boolean)
 
     track_id=Column(Integer, ForeignKey('tracks.id'), nullable = False)
-    track=relationship('DBTrack', single_parent = False,
-        backref = backref('tags', order_by=tag, cascade='all, delete, delete-orphan')
+    track=relationship('DBTrack',
+        single_parent = False,
+        backref = backref('tags',
+            order_by=tag,
+            cascade='all, delete, delete-orphan'
+        )
     )
 
     def __repr__(self):
@@ -734,7 +781,7 @@ class MusaDB(object):
 
     """
 
-    def __init__(self,path=None,engine=None,debug=False):
+    def __init__(self, path=None, engine=None, debug=False):
         """
         By default, use sqlite databases in file given by path.
         """
@@ -767,7 +814,7 @@ class MusaDB(object):
 
     def query(self, *args, **kwargs):
         """Wrapper to do a session query"""
-        return self.session.query(*args,**kwargs)
+        return self.session.query(*args, **kwargs)
 
     def rollback(self):
         """Wrapper to rolllback current session query"""
@@ -779,14 +826,14 @@ class MusaDB(object):
 
     def as_dict(self, result):
         """Returns current query Base result as dictionary"""
-        if not hasattr(result,'__table__'):
+        if not hasattr(result, '__table__'):
             raise ValueError('Not a sqlalchemy ORM result')
-        return dict((k.name,getattr(result,k.name)) for k in result.__table__.columns)
+        return dict((k.name, getattr(result, k.name)) for k in result.__table__.columns)
 
     def add(self, items):
         """Add items in query session, committing changes"""
 
-        if isinstance(items,list):
+        if isinstance(items, list):
             self.session.add_all(items)
         else:
             self.session.add(items)
@@ -796,7 +843,7 @@ class MusaDB(object):
     def delete(self, items):
         """Delete items in query session, committing changes"""
 
-        if isinstance(items,list):
+        if isinstance(items, list):
             for item in items:
                 self.session.delete(item)
         else:
@@ -847,28 +894,28 @@ class MusaDB(object):
 
         return self.query(DBTrack).all()
 
-    def register_sync_target(self,name,type,src,dst,flags=None,defaults=False):
+    def register_sync_target(self, name, type, src, dst, flags=None, defaults=False):
         existing = self.query(SyncTarget).filter(SyncTarget.name==name).first()
         if existing:
             raise MusaError('Sync target was already registerd: %s' % name)
-        target = SyncTarget(name=name,type=synctype,src=src,dst=dst,flags=flags,defaults=defaults)
+        target = SyncTarget(name=name, type=synctype, src=src, dst=dst, flags=flags, defaults=defaults)
         self.add(target)
         return target.as_dict()
 
-    def unregister_sync_target(self,name):
+    def unregister_sync_target(self, name):
         existing = self.query(SyncTarget).filter(SyncTarget.name==name).first()
         if not existing:
             raise MusaError('Sync target was not registered: %s' % name)
         self.delete(existing)
 
-    def register_codec(self,name,extensions,description='',decoders=[],encoders=[]):
+    def register_codec(self, name, extensions, description='', decoders=[], encoders=[]):
         """
         Register codec with given parameters
         """
-        codec = Codec(name=name,description=description)
-        extensions = [Extension(codec=codec,extension=e) for e in extensions]
-        decoders = [Decoder(codec=codec,priority=i,command=d) for i,d in enumerate(decoders)]
-        encoders = [Encoder(codec=codec,priority=i,command=e) for i,e in enumerate(encoders)]
+        codec = Codec(name=name, description=description)
+        extensions = [Extension(codec=codec, extension=e) for e in extensions]
+        decoders = [Decoder(codec=codec, priority=i, command=d) for i, d in enumerate(decoders)]
+        encoders = [Encoder(codec=codec, priority=i, command=e) for i, e in enumerate(encoders)]
         self.add([codec]+extensions+decoders+encoders)
         return codec
 
@@ -886,12 +933,12 @@ class MusaDB(object):
 
         self.delete(existing)
 
-    def register_playlist_source(self,path,name='Playlists'):
+    def register_playlist_source(self, path, name='Playlists'):
         existing = self.query(DBPlaylistSource).filter(DBPlaylistSource.path==path).first()
         if existing:
             raise MusaError('Playlist source is already registered: %s' % path)
 
-        self.add(DBPlaylistSource(path=path,name=name))
+        self.add(DBPlaylistSource(path=path, name=name))
 
     def unregister_playlist_source(self, path):
         existing = self.query(DBPlaylistSource).filter(DBPlaylistSource.path==path).first()
@@ -900,43 +947,43 @@ class MusaDB(object):
 
         self.delete(existing)
 
-    def get_playlist_source(self,path):
+    def get_playlist_source(self, path):
         return self.query(DBPlaylistSource).filter(DBPlaylistSource.path==path).first()
 
-    def get_playlist(self,path):
+    def get_playlist(self, path):
         return self.query(DBPlaylist).filter(DBPlaylist.path==path).first()
 
-    def register_tree(self,path,description='',tree_type='songs'):
-        if isinstance(path,str):
-            path = unicode(path,'utf-8')
+    def register_tree(self, path, description='', tree_type='songs'):
+        if isinstance(path, str):
+            path = unicode(path, 'utf-8')
 
         existing = self.query(DBTree).filter(DBTree.path==path).first()
         if existing:
             raise MusaError('Tree was already registered: %s' % path)
 
         tt = self.get_tree_type(tree_type)
-        self.add(DBTree(path=path,description=description,type=tt))
+        self.add(DBTree(path=path, description=description, type=tt))
 
-    def unregister_tree(self,path,description=''):
+    def unregister_tree(self, path, description=''):
         existing = self.query(DBTree).filter(DBTree.path==path).first()
         if not existing:
             raise MusaError('Tree was not registered: %s' % path)
 
         self.delete(existing)
 
-    def get_codec(self,name):
+    def get_codec(self, name):
         return self.query(Codec).filter(Codec.name==name).first()
 
-    def get_tree_type(self,name):
+    def get_tree_type(self, name):
         return self.query(DBTreeType).filter(DBTreeType.name==name).first()
 
-    def get_tree(self,path,tree_type='songs'):
+    def get_tree(self, path, tree_type='songs'):
         return self.query(DBTree).filter(DBTree.path==path).first()
 
-    def get_album(self,path):
+    def get_album(self, path):
         return self.query(DBAlbum).filter(DBAlbum.directory==path).first()
 
-    def get_track(self,path):
+    def get_track(self, path):
         directory = os.path.dirname(path)
         filename = os.path.basename(path)
-        return self.query(DBTrack).filter(DBTrack.directory==directory,DBTrack.filename==filename).first()
+        return self.query(DBTrack).filter(DBTrack.directory==directory, DBTrack.filename==filename).first()

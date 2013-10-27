@@ -5,7 +5,8 @@ Default settings for musa configuration database and commands.
 
 """
 
-import sys,os
+import sys
+import os
 
 if sys.platform=='darwin':
     MUSA_USER_DIR = os.path.expanduser('~/Library/Application Support/Musa')
@@ -47,7 +48,7 @@ DEFAULT_CODECS = {
 
   'm4a': {
     'description': 'Advanced Audio Coding',
-    'extensions': ['m4a','aac', 'mp4'],
+    'extensions': ['m4a', 'aac', 'mp4'],
     'encoders': [
         'neroAacEnc -if FILE -of OUTFILE -br 256000 -2pass',
         'afconvert -b 256000 --soundcheck-generate -f m4af -d aac FILE OUTFILE',
@@ -60,7 +61,7 @@ DEFAULT_CODECS = {
 
   'vorbis': {
     'description': 'Ogg Vorbis',
-    'extensions': ['vorbis','ogg'],
+    'extensions': ['vorbis', 'ogg'],
     'encoders': [
         'oggenc --quiet -q 7 -o OUTFILE FILE',
     ],
@@ -82,9 +83,9 @@ DEFAULT_CODECS = {
 
   'wavpack': {
     'description': 'WavPack Lossless Audio Codec',
-    'extensions': ['wv','wavpack'],
-    'encoders': [ 'wavpack -yhx FILE -o OUTFILE', ],
-    'decoders': [ 'wvunpack -yq FILE -o OUTFILE', ],
+    'extensions': ['wv', 'wavpack'],
+    'encoders': [ 'wavpack -yhx FILE -o OUTFILE' ],
+    'decoders': [ 'wvunpack -yq FILE -o OUTFILE' ],
   },
 
   'caf': {
@@ -100,7 +101,7 @@ DEFAULT_CODECS = {
 
   'aif': {
       'description': 'AIFF audio',
-      'extensions':   ['aif','aiff'],
+      'extensions':   ['aif', 'aiff'],
       'encoders': [
         'afconvert -f AIFF -d BEI16 FILE OUTFILE',
       ],

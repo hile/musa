@@ -30,7 +30,7 @@ class TranscoderThread(MusaThread):
     Class to transcode one file from Transcoder queue.
     """
 
-    def __init__(self,index,src,dst,overwrite=False,dry_run=False):
+    def __init__(self, index, src, dst, overwrite=False, dry_run=False):
         MusaThread.__init__(self, 'convert')
         self.index = index
         self.src = src
@@ -44,7 +44,7 @@ class TranscoderThread(MusaThread):
             except OSError, (ecode, emsg):
                 raise TranscoderError('Error creating directory %s: %s' % (MUSA_CACHE_DIR, emsg))
 
-    def error(self,message):
+    def error(self, message):
         print message
         sys.exit(1)
 
@@ -143,7 +143,7 @@ class TranscoderThread(MusaThread):
 
 
 class MusaTranscoder(MusaThreadManager):
-    def __init__(self,threads,overwrite=False,dry_run=False):
+    def __init__(self, threads, overwrite=False, dry_run=False):
         MusaThreadManager.__init__(self, 'convert', int(threads))
         self.overwrite = overwrite
         self.dry_run = dry_run
@@ -165,7 +165,7 @@ class MusaTranscoder(MusaThreadManager):
         except TreeError, emsg:
             raise TranscoderError(str(emsg))
 
-        self.log.debug('enqueue: %s -> %s' % (src.path,dst.path))
+        self.log.debug('enqueue: %s -> %s' % (src.path, dst.path))
         self.append((src, dst))
 
     def get_entry_handler(self, index, entry):

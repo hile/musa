@@ -5,10 +5,10 @@ Abstraction for album art image format processing
 
 """
 
-import os,requests,logging,StringIO
+import os
+import requests
+import StringIO
 from PIL import ImageFile
-
-from musa.log import MusaLogger
 
 DEFAULT_ARTWORK_FILENAME = 'artwork.jpg'
 
@@ -22,20 +22,13 @@ PIL_MIME_MAP = {
     'PNG':      'image/png',
 }
 
-class AlbumArtError(Exception):
-    """
-    Exception thrown by errors in file metadata, parameters or
-    file permissiosns.
-    """
-    def __str__(self):
-        return self.args[0]
+class AlbumArtError(Exception): pass
 
 class AlbumArt(object):
     """
     Class to parse albumart image files from tags and files
     """
-    def __init__(self,path=None):
-        self.log =  MusaLogger('musa').default_stream
+    def __init__(self, path=None):
         self.__image = None
         self.__mimetype = None
         if path is not None:
@@ -55,7 +48,7 @@ class AlbumArt(object):
         """
         if not self.is_loaded():
             return unicode('Uninitialized AlbumArt object')
-        return unicode('%s file %d bytes' % (self.get_fileformat(),len(self)))
+        return unicode('%s file %d bytes' % (self.get_fileformat(), len(self)))
 
     def __len__(self):
         """
@@ -65,7 +58,7 @@ class AlbumArt(object):
             return 0
         return len(self.__image.tostring())
 
-    def __parse_image(self,data):
+    def __parse_image(self, data):
         """
         Load the image from data with PIL
         """
@@ -84,21 +77,21 @@ class AlbumArt(object):
         if self.__image.mode != 'RGB':
             self.__image = self.__image.convert('RGB')
 
-    def import_data(self,data):
+    def import_data(self, data):
         """
         Import albumart from metadata tag or database as bytes
         """
         self.__parse_image(data)
 
-    def import_file(self,path):
+    def import_file(self, path):
         """
         Import albumart from file
         """
         if not os.path.isfile(path):
             raise AlbumArtError('No such file: %s' % path)
-        if not os.access(path,os.R_OK):
+        if not os.access(path, os.R_OK):
             raise AlbumArtError('No permissions to read file: %s' % path)
-        self.__parse_image(open(path,'r').read())
+        self.__parse_image(open(path, 'r').read())
 
     def is_loaded(self):
         """
@@ -139,11 +132,11 @@ class AlbumArt(object):
         if not self.is_loaded():
             raise AlbumArtError('AlbumArt not yet initialized.')
         s = StringIO.StringIO()
-        self.__image.save(s,self.get_fileformat())
+        self.__image.save(s, self.get_fileformat())
         s.seek(0)
         return s.read()
 
-    def save(self,path,fileformat=None):
+    def save(self, path, fileformat=None):
         """
         Saves the image data to given target file.
 
@@ -154,28 +147,28 @@ class AlbumArt(object):
         if fileformat is None:
             fileformat = self.get_fileformat()
         if os.path.isdir(path):
-            path = os.path.join(path,DEFAULT_ARTWORK_FILENAME)
+            path = os.path.join(path, DEFAULT_ARTWORK_FILENAME)
         if os.path.isfile(path):
             try:
                 os.unlink(path)
-            except IOError,(ecode,emsg):
-                raise AlbumArtError('Error removing existing file %s: %s' % (path,emsg) )
+            except IOError, (ecode, emsg):
+                raise AlbumArtError('Error removing existing file %s: %s' % (path, emsg) )
         try:
-            self.__image.save(path,fileformat)
-        except IOError,emsg:
-            raise AlbumArtError('Error saving %s: %s' % (path,emsg))
+            self.__image.save(path, fileformat)
+        except IOError, emsg:
+            raise AlbumArtError('Error saving %s: %s' % (path, emsg))
 
-    def fetch(self,url):
+    def fetch(self, url):
         res = requests.get(url)
         if res.status_code!=200:
             raise AlbumArtError(
-                'Error fetching url %s (returns %s' % (url,res.status_code)
+                'Error fetching url %s (returns %s' % (url, res.status_code)
             )
         if 'content-type' not in res.headers:
             raise AlbumArtError('Response did not include content type header')
         try:
             content_type = res.headers['content-type']
-            (prefix,extension) = content_type.split('/',1)
+            (prefix, extension) = content_type.split('/', 1)
             if prefix!='image':
                 raise AlbumArtError(
                     'Content type of data is not supported: %s' % content_type
