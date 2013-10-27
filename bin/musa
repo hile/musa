@@ -643,12 +643,14 @@ class CopyTagsCommand(MusaCommand):
             if value == target_value:
                 continue
 
+            if not modified:
+                print 'Updating: %s' % dst.path
+
             print '  UPDATE %s: %s -> %s' % (tag, target_value, value)
             dst.tags[tag] = value
             modified = True
 
         if modified:
-            print 'Saving: %s' % dst.path
             dst.tags.save()
 
     def parse_args(self, args):
