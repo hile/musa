@@ -38,6 +38,7 @@ AAC_STANDARD_TAGS = {
     'bpm':                  ['tmpo'],
     'rating':               ['rati'],
     'replaygain':           ['repl'],
+    'mcn':                  ['mcn\x00'],
     'label':                ['labe'],
     'copyright':            ['cprt'],
     'license':              ['lice'],
