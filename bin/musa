@@ -693,7 +693,7 @@ class CopyTagsCommand(MusaCommand):
 
         ended = datetime.now()
         script.log.debug('Processed %d tracks, updated %d tracks in %s seconds' % (
-            processed, updated, timedelta(ended-started).total_seconds()
+            processed, updated, (ended-started).total_seconds()
         ))
 
 class JoinCommand(MusaCommand):
