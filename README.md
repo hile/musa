@@ -15,6 +15,11 @@ This code base is heavily refactored from earlier musa 1.x series and is not
 compatible with it. If you need the older code base for your project, please 
 contact author for old versions not tracked on github.
 
+In version 3.0, a lot of functionality related to tree management, tags and
+codec was moved to separate 'soundforest' project. 
+
+You need at least version 3.0 of soundforest to install new musa.
+
 # Using the scripts #
 
 The scripts are being rewritten as subcommands of 'musa' utility. Stay tuned.

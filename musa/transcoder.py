@@ -12,10 +12,9 @@ import time
 import tempfile
 
 from musa.defaults import MUSA_CACHE_DIR
-from musa.log import MusaLogger
-from musa.cli import MusaThread, MusaThreadManager, MusaScriptError
-from musa.tags import TagError
-from musa.tree import Tree, Album, Track, TreeError
+from musa.cli import ScriptThread, MusaThreadManager
+from soundforest.tags import TagError
+from soundforest.tree import Tree, Album, Track, TreeError
 
 
 class TranscoderError(Exception):
@@ -25,13 +24,13 @@ class TranscoderError(Exception):
         return self.args[0]
 
 
-class TranscoderThread(MusaThread):
+class TranscoderThread(ScriptThread):
     """
     Class to transcode one file from Transcoder queue.
     """
 
     def __init__(self, index, src, dst, overwrite=False, dry_run=False):
-        MusaThread.__init__(self, 'convert')
+        ScriptThread.__init__(self, 'convert')
         self.index = index
         self.src = src
         self.dst = dst
@@ -175,3 +174,4 @@ class MusaTranscoder(MusaThreadManager):
     def run(self):
         self.log.debug('Transcoding %s files with %d threads' % (len(self), self.threads))
         MusaThreadManager.run(self)
+

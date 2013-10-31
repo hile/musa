@@ -3,7 +3,7 @@
 import os,glob
 from setuptools import setup,find_packages
 
-VERSION='2.0.1'
+VERSION='3.0'
 README = open(os.path.join(os.path.dirname(__file__),'README.md'),'r').read()
 
 setup(
@@ -17,12 +17,11 @@ setup(
     keywords = 'music library tag management',
     url = 'http://tuohela.net/packages/musa',
     zip_safe = False,
-    install_requires = [
-        'setproctitle', 'lxml','configobj', 'requests',
-        'mutagen','python-musicbrainz2', 'boto>=2.0', 'pillow',
-        'sqlalchemy', 'pytz'
-    ],
+    packages = ( 'musa', ),
     scripts = glob.glob('bin/*'),
-    packages = ['musa','musa.tags','musa.tags.formats'],
+    install_requires = ( 
+        'configobj', 
+        'soundforest>=3.0', 
+    ),
 )
 

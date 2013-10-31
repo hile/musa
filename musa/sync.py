@@ -11,11 +11,11 @@ import time
 
 from subprocess import Popen, PIPE
 
-from musa.config import MusaConfigDB
 from musa.defaults import MUSA_USER_DIR
-from musa.log import MusaLogger
-from musa.cli import MusaThread, MusaThreadManager
-from musa.tree import Tree, Track, TreeError
+from musa.cli import ScriptThread, MusaThreadManager
+from soundforest.config import ConfigDB
+from soundforest.log import SoundforestLogger
+from soundforest.tree import Tree, Track, TreeError
 
 SYNC_LOG = os.path.join(MUSA_USER_DIR, 'sync.log')
 
@@ -30,7 +30,8 @@ RSYNC_DELETE_FLAGS = (
 )
 DEFAULT_DELETE_FLAG = '--delete-before'
 
-class SyncError(Exception): pass
+class SyncError(Exception):
+    pass
 
 
 def ntfs_rename(path):
@@ -52,12 +53,12 @@ def ntfs_rename(path):
     return path
 
 RENAME_CALLBACKS = {
-    'ntfs':     ntfs_rename,
+    'ntfs': ntfs_rename,
 }
 
-class SyncThread(MusaThread):
+class SyncThread(ScriptThread):
     def __init__(self, manager, index, src, dst, delete=False):
-        MusaThread.__init__(self, 'sync')
+        ScriptThread.__init__(self, 'sync')
         self.manager = manager
         self.log = self.manager.log
         self.index = index
@@ -66,18 +67,22 @@ class SyncThread(MusaThread):
         if isinstance(src, Tree):
             self.src_tree = src
             self.src = src.path
+
         elif isinstance(src, basestring):
             self.src_tree = None
             self.src = os.path.expandvars(src).rstrip(os.sep)
+
         else:
             raise SyncError('Src is not string or Tree object: %s' % src)
 
         if isinstance(dst, Tree):
             self.dst_tree = dst
             self.dst = dst.path
+
         elif isinstance(dst, basestring):
             self.dst_tree = None
             self.dst = os.path.expandvars(dst).rstrip(os.sep)
+
         else:
             raise SyncError('Dst is not string or Tree object: %s' % dst)
 
@@ -99,20 +104,24 @@ class FilesystemSyncThread(SyncThread):
     def copy_track(self, src, dst):
         try:
             shutil.copyfile(src, dst)
+
         except IOError, (ecode, emsg):
             raise SyncError('Error writing to %s: %s' % (dst, emsg))
+
         except OSError, (ecode, emsg):
             raise SyncError('Error writing to %s: %s' % (dst, emsg))
 
     def run(self):
         if not os.path.isdir(self.src_tree.path):
             raise SyncError('Source not available while syncing: %s' % self.src_tree.path)
+
         if not os.path.isdir(self.dst_tree.path):
             raise SyncError('Destination not available while syncing: %s' % self.dst_tree.path)
+
         src = self.src_tree
         dst = self.dst_tree
-
         i=0
+
         for album in src.as_albums():
             dst_album_path = os.path.join(dst.path, src.relative_path(album.path))
             if self.rename is not None:
@@ -122,6 +131,7 @@ class FilesystemSyncThread(SyncThread):
                 try:
                     self.log.info('Create directory: %s' % dst_album_path)
                     os.makedirs(dst_album_path)
+
                 except OSError, (ecode, emsg):
                     self.log.info('Error creating directory %s: %s' % (dst_album_path, emsg))
                     continue
@@ -129,6 +139,7 @@ class FilesystemSyncThread(SyncThread):
             for track in album:
                 i+=1
                 dst_track_path = os.path.join(dst.path, track.relative_path)
+
                 if self.rename:
                     dst_track_path = self.rename(dst_track_path)
                 dst_track = Track(os.path.join(dst_track_path))
@@ -137,6 +148,7 @@ class FilesystemSyncThread(SyncThread):
                 if not os.path.isfile(dst_track.path):
                     self.log.info('%6d new: %s' % (i, dst_track.path))
                     modified = True
+
                 elif track.size != dst_track.size:
                     self.log.info('%6d modified: %s' % (i, dst_track.path))
                     modified = True
@@ -144,6 +156,7 @@ class FilesystemSyncThread(SyncThread):
                 if modified:
                     try:
                         self.copy_track(track.path, dst_track.path)
+
                     except SyncError, emsg:
                         print emsg
                         continue
@@ -153,12 +166,16 @@ class RsyncThread(SyncThread):
         SyncThread.__init__(self, manager, index, src, dst, delete)
         if isinstance(flags, basestring):
             flags = flags.split()
+
         if delete and not RSYNC_DELETE_FLAGS.intersection(set(flags)):
             flags.insert(0, DEFAULT_DELETE_FLAG)
+
         self.flags = flags
 
     def run(self):
         command = ['rsync', '-av'] + self.flags + ['%s/' % self.src, '%s/' % self.dst]
+        print 'running ', ' '.join(command)
+
         try:
             self.log.info('Running: %s' % ' '.join(command))
 
@@ -186,21 +203,27 @@ class SyncManager(MusaThreadManager):
         MusaThreadManager.__init__(self, 'sync', threads)
         self.delete = delete
         self.debug = debug
+
         if not debug:
-            self.log = MusaLogger('sync').register_file_handler('sync', MUSA_USER_DIR)
-            MusaLogger('sync').set_level('INFO')
+            self.log = SoundforestLogger('sync').register_file_handler('sync', MUSA_USER_DIR)
+            SoundforestLogger('sync').set_level('INFO')
+
         else:
-            self.log = MusaLogger('sync').default_stream
+            self.log = SoundforestLogger().default_stream
 
     def parse_target(self, name):
         try:
             target = self.db.sync[name]
+
         except KeyError:
             return None
+
         if not 'src' in target:
             raise SyncError('Target missing source')
+
         if not 'dst' in target:
             raise SyncError('Target missing destination')
+
         return target
 
     @property
@@ -211,21 +234,27 @@ class SyncManager(MusaThreadManager):
         sync_type = config.pop('type', None)
         if sync_type=='rsync':
             return RsyncThread(manager=self, index=index, **config)
+
         elif sync_type=='directory':
             return FilesystemSyncThread(manager=self, index=index, **config)
+
         else:
             raise SyncError('BUG: invalid sync type in thread config')
 
     def enqueue(self, config):
         if not isinstance(config, dict):
             raise SyncError('Enqueue requires a dictionary')
+
         sync_type = config.get('type', None)
         if sync_type not in ['rsync', 'directory']:
             raise SyncError('Unknown sync type in config: %s' % sync_type)
+
         if 'delete' not in config:
             config['delete'] = self.delete
+
         for k in ('id', 'name', 'defaults'):
             if k in config:
                 config.pop(k)
+
         self.append(config)
 
