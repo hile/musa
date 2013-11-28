@@ -103,11 +103,11 @@ class MusaScript(Script):
 
                 k, v = [x.strip() for x in l.split('=', 1)]
                 if k in new_tags.keys():
-                    raise MusaScriptError('Duplicate tag in data')
+                    raise ScriptError('Duplicate tag in data')
                 new_tags[k] = v
 
             except ValueError, emsg:
-                raise MusaScriptError('Error parsing new tags from file: %s' % emsg)
+                raise ScriptError('Error parsing new tags from file: %s' % emsg)
 
         return new_tags
 
@@ -154,7 +154,7 @@ class MusaScriptCommand(ScriptCommand):
                         pass
 
                 if tag is None or value is None:
-                    raise MusaScriptError('Invalid tag input line: %s' % line)
+                    raise ScriptError('Invalid tag input line: %s' % line)
                 tags[tag] = unicode(value)
 
         return tags
