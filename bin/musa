@@ -43,10 +43,18 @@ class AlbumArtCommand(MusaScriptCommand):
         description = 'Manage music file album art'
         mode_flags = []
         CHOICES = ('embed', 'extract', 'extract-missing', 'info')
+
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
-        self.parser.add_argument('-u', '--url', help='Fetch artwork from given url')
-        self.parser.add_argument('action', choices=CHOICES, help='Action')
-        self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
+        self.parser.add_argument('-u', '--url',
+            help='Fetch artwork from given url'
+        )
+        self.parser.add_argument('action', choices=CHOICES,
+            help='Action to perform'
+        )
+        self.parser.add_argument('paths',
+            metavar='path', nargs='*',
+            help='Paths to process'
+        )
 
     def show_info(self, target):
         if isinstance(target, Track):
@@ -205,8 +213,15 @@ class CleanupCommand(MusaScriptCommand):
         description = 'Remove unwanted metadata files from tree'
         mode_flags = []
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
-        self.parser.add_argument('-y', '--dry-run', action='store_true', help='Only show files to be removed')
-        self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
+        self.parser.add_argument('-y', '--dry-run',
+            action='store_true',
+            help='Only show files to be removed'
+        )
+        self.parser.add_argument('paths',
+            metavar='path',
+            nargs='*',
+            help='Paths to process'
+        )
 
     def cleanup_tree(self, tree, dry_run):
         if not isinstance(tree, Tree):
@@ -241,7 +256,6 @@ class CleanupCommand(MusaScriptCommand):
             self.cleanup_tree(tree, dry_run=args.dry_run)
 
 
-
 class CompareCommand(MusaScriptCommand):
 
     def __init__(self, script):
@@ -249,7 +263,10 @@ class CompareCommand(MusaScriptCommand):
         description = 'Compare music files'
         mode_flags = []
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
-        self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
+        self.parser.add_argument('paths',
+            metavar='path', nargs='*',
+            help='Paths to process'
+        )
 
     def compare_trees(self, src, dst):
         src_track_paths = [x.relative_path.no_ext for x in src]
@@ -315,8 +332,14 @@ class CodecCommand(MusaScriptCommand):
         description = 'Configure codec command stored to database'
         mode_flags = []
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
-        self.parser.add_argument('action', choices=('list', 'register-tester', 'unregister-tester'))
-        self.parser.add_argument('names', nargs='*', help='Codec names to match')
+        self.parser.add_argument('action',
+            choices=('list', 'register-tester', 'unregister-tester', ),
+            help='Action to run'
+        )
+        self.parser.add_argument('names',
+            nargs='*',
+            help='Codec names to match'
+        )
 
     def parse_args(self, args):
         MusaScriptCommand.parse_args(self, args, skip_targets=True)
@@ -372,9 +395,17 @@ class ConfigCommand(MusaScriptCommand):
         mode_flags = []
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
 
-        self.parser.add_argument('action', choices=('list', 'set', 'get'))
-        self.parser.add_argument('key', nargs='?', help='Configuration key')
-        self.parser.add_argument('value', nargs='?', help='Configuration value')
+        self.parser.add_argument('action',
+            choices=('list', 'set', 'get')
+        )
+        self.parser.add_argument('key',
+            nargs='?',
+            help='Configuration key'
+        )
+        self.parser.add_argument('value',
+            nargs='?',
+            help='Configuration value'
+        )
 
     def parse_args(self, args):
         MusaScriptCommand.parse_args(self, args, skip_targets=True)
@@ -400,13 +431,31 @@ class ConvertCommand(MusaScriptCommand):
         mode_flags = []
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
 
-        self.parser.add_argument('-t', '--threads', type=int, help='Number of transcoder threads to use')
-        self.parser.add_argument('-m', '--metadata', action='store_true', help='Copy album metadata')
-        self.parser.add_argument('-y', '--dry-run', action='store_true', help='Only show which tracks would have been transcoded')
-        self.parser.add_argument('-f', '--overwrite', action='store_true', help='Overwrite existing target files')
-        self.parser.add_argument('-p', '--prefix', help='Target file relative path prefix')
-        self.parser.add_argument('-c', '--codecs', help='Destination codecs for tree mode')
-        self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
+        self.parser.add_argument('-t', '--threads',
+            type=int,
+            help='Number of transcoder threads to use'
+        )
+        self.parser.add_argument('-m', '--metadata',
+            action='store_true',
+            help='Copy album metadata'
+        )
+        self.parser.add_argument('-y', '--dry-run',
+            action='store_true',
+            help='Only show which tracks would have been transcoded'
+        )
+        self.parser.add_argument('-f', '--overwrite', action='store_true',
+            help='Overwrite existing target files'
+        )
+        self.parser.add_argument('-p', '--prefix',
+            help='Target file relative path prefix'
+        )
+        self.parser.add_argument('-c', '--codecs',
+            help='Destination codecs for tree mode'
+        )
+        self.parser.add_argument('paths',
+            metavar='path', nargs='*',
+            help='Paths to process'
+        )
 
     def enqueue(self, src, dst):
         """
@@ -562,7 +611,7 @@ class DatabaseCommand(MusaScriptCommand):
             'info',
             'update',
             'register',
-            'unregister'
+            'unregister',
         )
         self.parser.add_argument('action', choices=CHOICES)
         self.parser.add_argument('trees', nargs='*', help='Tree paths to process')
@@ -855,12 +904,30 @@ class SyncCommand(MusaScriptCommand):
         description = 'Synchronize files and trees'
         mode_flags = []
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
-        self.parser.add_argument('-d', '--directories', action='store_true', help='Sync directories, not configured targets')
-        self.parser.add_argument('-l', '--list', action='store_true',help='List configured sync targets')
-        self.parser.add_argument('-r', '--rename', help='Directory sync target filesystem rename callback')
-        self.parser.add_argument('-D', '--delete', action='store_true', help='Remove unknown files from target')
-        self.parser.add_argument('-t', '--threads', type=int, help='Number of sync threads to use')
-        self.parser.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
+        self.parser.add_argument('-d', '--directories',
+            action='store_true',
+            help='Sync directories, not configured targets'
+        )
+        self.parser.add_argument('-l', '--list',
+            action='store_true',
+            help='List configured sync targets'
+        )
+        self.parser.add_argument('-r', '--rename',
+            help='Directory sync target filesystem rename callback'
+        )
+        self.parser.add_argument('-D', '--delete',
+            action='store_true',
+            help='Remove unknown files from target'
+        )
+        self.parser.add_argument('-t', '--threads',
+            type=int,
+            help='Number of sync threads to use'
+        )
+        self.parser.add_argument('paths',
+            metavar='path',
+            nargs='*',
+            help='Paths to process'
+        )
 
     def parse_args(self, args):
         MusaScriptCommand.parse_args(self, args, skip_targets=True)
