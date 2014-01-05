@@ -125,12 +125,15 @@ class AlbumArtCommand(MusaScriptCommand):
             albums = target.as_albums()
             if not albums:
                 self.script.exit(1, 'No albums found from path %s' % target.path)
+
             for album in albums:
                 track = album[0]
                 tags = track.tags
+
                 if tags is None:
                     self.script.error('No tags in %s' % track.path)
                     continue
+
                 if not tags.albumart:
                     self.script.error('No album art in %s' % track.path)
                     continue
@@ -139,6 +142,7 @@ class AlbumArtCommand(MusaScriptCommand):
 
                 if not overwrite and os.path.isfile(albumart_path):
                     self.log.debug('Skip existing: %s' % albumart_path)
+
                 else:
                     try:
                         tags.albumart.save(albumart_path)
@@ -148,9 +152,11 @@ class AlbumArtCommand(MusaScriptCommand):
 
         elif isinstance(target, Track):
             tags = target.tags
+
             if tags is None:
                 self.script.error('No tags in %s' % target.path)
                 return
+
             if not tags.albumart:
                 self.script.error('No album art in %s' % target.path)
                 return
@@ -159,6 +165,7 @@ class AlbumArtCommand(MusaScriptCommand):
 
             if not overwrite and os.path.isfile(albumart_path):
                 self.log.debug('Skip existing: %s' % albumart_path)
+
             else:
                 try:
                     tags.albumart.save(albumart_path)
@@ -181,27 +188,33 @@ class AlbumArtCommand(MusaScriptCommand):
             for track in tracks:
                 self.show_info(track)
 
-        if args.url:
-            albumart = AlbumArt()
-            try:
-                albumart.fetch(args.url)
-            except AlbumArtError, emsg:
-                self.script.exit(1, 'Error fetching albumart: %s' % emsg)
-            for target in trees:
-                albumart.save(target.path)
-        else:
-            albumart = None
-
         if args.action == 'embed':
+            if args.url:
+                albumart = AlbumArt()
+
+                try:
+                    albumart.fetch(args.url)
+                except AlbumArtError, emsg:
+                    self.script.exit(1, 'Error fetching albumart: %s' % emsg)
+
+                for target in trees:
+                    albumart.save(target.path)
+
+            else:
+                albumart = None
+
             for tree in trees:
                 self.embed(tree, albumart)
+
             for track in tracks:
                 self.embed(track, albumart)
 
         if args.action in ('extract', 'extract-missing'):
             overwrite = args.action == 'extract'
+
             for tree in trees:
                 self.extract(tree, overwrite=overwrite)
+
             for track in tracks:
                 self.extract(track, overwrite=overwrite)
 
