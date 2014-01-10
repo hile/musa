@@ -446,6 +446,7 @@ class ConvertCommand(MusaScriptCommand):
 
         self.parser.add_argument('-t', '--threads',
             type=int,
+            default=1,
             help='Number of transcoder threads to use'
         )
         self.parser.add_argument('-m', '--metadata',
@@ -458,6 +459,9 @@ class ConvertCommand(MusaScriptCommand):
         )
         self.parser.add_argument('-f', '--overwrite', action='store_true',
             help='Overwrite existing target files'
+        )
+        self.parser.add_argument('-o', '--output',
+            help='Specify output filename for single file conversion',
         )
         self.parser.add_argument('-p', '--prefix',
             help='Target file relative path prefix'
@@ -541,7 +545,13 @@ class ConvertCommand(MusaScriptCommand):
 
         return Track(os.path.join(prefix_path, dst_relpath))
 
-    def transcode(self, src, dst=None, prefix_path=None, codec=None):
+    def transcode(self, src, dst=None, prefix_path=None, output_file=None, codec=None):
+        if output_file:
+            if not isinstance(src, Track):
+                self.script.exit(1, 'Unsupported transcode arguments')
+            self.enqueue(src, Track(os.path.realpath(output_file)))
+            return
+
         try:
             if isinstance(src, Tree) and isinstance(dst, Tree):
                 for track in src:
@@ -586,7 +596,12 @@ class ConvertCommand(MusaScriptCommand):
         self.overwrite = args.overwrite
 
         self.metadata_paths_to_copy = {}
-        if args.codecs is not None:
+        if args.output and track_count==1:
+            try:
+                self.transcode(tracks[0], output_file=args.output)
+            except IndexError:
+                self.script.exit(1, 'Converting a single file requires one source track path')
+        elif args.codecs is not None:
             for codec in args.codecs.split(','):
                 for tree in trees:
                     for track in tree:
@@ -859,10 +874,6 @@ class PlaylistCommand(MusaScriptCommand):
         mode_flags = []
         PLAYLIST_DIRECTORY = os.path.expanduser('~/Music/Playlists')
         MusaScriptCommand.__init__(self, script, name, description, mode_flags)
-        self.parser.add_argument('-l', '--list', action='store_true', help='List playlist songs')
-        self.parser.add_argument('-b', '--update', action='store_true', help='Update registered playlist trees')
-        self.parser.add_argument('-r', '--register', action='store_true', help='Register playlist trees')
-        self.parser.add_argument('-u', '--unregister', action='store_true', help='Unregister playlist trees')
         self.parser.add_argument('action', choices=('list', 'update', 'register', 'unregister'))
         self.parser.add_argument('paths', nargs='*', help='Tree paths to process')
 
