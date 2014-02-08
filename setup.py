@@ -3,7 +3,7 @@
 import os,glob
 from setuptools import setup,find_packages
 
-VERSION='3.0'
+VERSION='3.1'
 README = open(os.path.join(os.path.dirname(__file__),'README.md'),'r').read()
 
 setup(
