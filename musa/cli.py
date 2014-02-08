@@ -159,11 +159,11 @@ class MusaScriptCommand(ScriptCommand):
 
         return tags
 
-    def parse_args(self, args, skip_targets=False):
+    def run(self, args, skip_targets=False):
         """
         Common argument parsing
         """
-        args = ScriptCommand.parse_args(self, args)
+        args = ScriptCommand.run(self, args)
 
         self.prefixes = TreePrefixes()
 
