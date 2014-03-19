@@ -401,26 +401,25 @@ class ConvertCommand(MusaScriptCommand):
                     prefix = self.prefixes.register_prefix(prefix_path, extensions)
             else:
                 prefix = self.prefixes.match_extension(codec, match_existing=True)
-                if prefix is None:
-                    raise ScriptError('No tree prefix matching codec %s found' % codec)
 
         elif dst is not None:
             prefix = self.prefixes.match(dst.path, match_existing=True)
             if prefix is None:
                 prefix = self.prefixes.match(dst.path, match_existing=False)
-            if prefix is None:
-                raise ScriptError('Error finding prefix matching path %s' % dst)
 
         else:
             raise ScriptError(
                 'BUG in parse_target_relative_path: Both dst and codec were None'
             )
 
-        extension = prefix.extensions[0]
-        if prefix_path is None:
-            prefix_path = prefix.path
+        if prefix is not None:
+            extension = prefix.extensions[0]
+            if prefix_path is None:
+                prefix_path = prefix.path
+        else:
+            extension = codec
 
-        if src.relative_path.startswith(os.sep):
+        if prefix_path is None and src.relative_path.startswith(os.sep):
             # Could not parse relative path for source: encode to src directory
             prefix_path = os.path.dirname(os.path.realpath(src.path))
             dst_relpath = '%s.%s' % (os.path.splitext(src.path)[0], extension)
