@@ -60,7 +60,6 @@ class SyncThread(ScriptThread):
     def __init__(self, manager, index, src, dst, delete=False):
         ScriptThread.__init__(self, 'sync')
         self.manager = manager
-        self.log = self.manager.log
         self.index = index
         self.delete = delete
 
