@@ -82,7 +82,7 @@ class MusaScript(Script):
 
         tmp = tempfile.NamedTemporaryFile(
             dir=os.getenv('HOME'),
-            prefix='.musa-',
+            prefix='.musa-tags',
             suffix='.txt'
         )
 
