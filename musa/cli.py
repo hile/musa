@@ -88,7 +88,8 @@ class MusaScript(Script):
 
         fd = open(tmp.name, 'w')
         for k in sorted(tags.keys()):
-            fd.write('%s=%s\n' % (k, tags[k]))
+            for v in tags[k]:
+                fd.write('%s=%s\n' % (k, v))
         fd.close()
 
         editor = MusaTagsEditor(tmp.name)
