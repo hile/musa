@@ -104,8 +104,9 @@ class MusaScript(Script):
 
                 k, v = [x.strip() for x in l.split('=', 1)]
                 if k in new_tags.keys():
-                    raise ScriptError('Duplicate tag in data')
-                new_tags[k] = v
+                    new_tags[k].append(v)
+                else:
+                    new_tags[k] = [v]
 
             except ValueError, emsg:
                 raise ScriptError('Error parsing new tags from file: %s' % emsg)
