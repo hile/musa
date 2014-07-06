@@ -835,10 +835,12 @@ class TagsCommand(MusaScriptCommand):
         else:
             if print_path:
                 self.message(path_format % track.path)
-            for k, v in tags.items():
+            for tag, values in tags.items():
                 if show_tags and k not in show_tags:
                     continue
-                self.message('%s %s' % (k, v))
+
+                for v in values:
+                    self.message('%s %s' % (tag, v))
 
     def edit_tags(self, track):
         """
@@ -906,12 +908,14 @@ class TagsCommand(MusaScriptCommand):
         track_tags = self.get_tags(track)
         if track_tags is None:
             return None
+
         try:
             if track_tags.update_tags(tags):
                 track_tags.save()
                 db_track = self.script.db.get_track(track.path)
                 if db_track is not None:
                     db_track.update(self.script.db.session, track)
+
         except TagError, emsg:
             self.script.exit(1, 'Error saving tags to %s: %s' % (track.path, emsg))
 
@@ -941,7 +945,12 @@ class TagsCommand(MusaScriptCommand):
 
         if args.set:
             try:
-                tags = dict(map(lambda v: v.split('=', 1), args.set))
+                tags = {}
+                for tag in args.set:
+                    key, value = tag.split('=', 1)
+                    if key not in tags:
+                        tags[key] = []
+                    tags[key].append(value)
             except ValueError:
                 self.script.exit('Invalid arguments to --set flag: %s' % args.set)
             self.process_tracks(trees, tracks, self.update_tags, tags=tags)
