@@ -68,7 +68,7 @@ class SyncThread(ScriptThread):
             self.src = src.path
 
         elif isinstance(src, basestring):
-            self.src_tree = None
+            self.src_tree = Tree(src)
             self.src = os.path.expandvars(src).rstrip(os.sep)
 
         else:
@@ -79,7 +79,7 @@ class SyncThread(ScriptThread):
             self.dst = dst.path
 
         elif isinstance(dst, basestring):
-            self.dst_tree = None
+            self.dst_tree = Tree(dst)
             self.dst = os.path.expandvars(dst).rstrip(os.sep)
 
         else:
@@ -235,6 +235,8 @@ class SyncManager(MusaThreadManager):
             return RsyncThread(manager=self, index=index, **config)
 
         elif sync_type=='directory':
+            if 'flags' in config:
+                del config['flags']
             return FilesystemSyncThread(manager=self, index=index, **config)
 
         else:
