@@ -1,4 +1,3 @@
-# vim: noexpandtab, tabstop=4
 #
 # Install the scrips, configs and python modules
 #
@@ -42,5 +41,5 @@ package: clean
 	rm -rf $(PACKAGE)-$(VERSION)
 
 register:
-	python setup.py register
+	python setup.py register sdist upload
 
