@@ -3,7 +3,7 @@
 import os,glob
 from setuptools import setup,find_packages
 
-VERSION='3.2'
+VERSION='3.3.12'
 
 setup(
     name = 'musa',
