@@ -52,7 +52,7 @@ class AlbumArtCommand(MusaScriptCommand):
             for album in target.as_albums():
                 album.load()
                 for m in album.metadata:
-                    if isinstance(m, CoverArt):
+                    if hasattr(m, 'metadata') and isinstance(m.metadata, CoverArt):
                         self.print_coverart_info(m)
                     else:
                         self.message(m)

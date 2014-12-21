@@ -3,7 +3,7 @@
 import os,glob
 from setuptools import setup,find_packages
 
-VERSION='3.3.12'
+VERSION='3.3.13'
 
 setup(
     name = 'musa',
@@ -14,13 +14,12 @@ setup(
     description = 'Module for music tagging and library management',
     keywords = 'music library tag management',
     url = 'http://tuohela.net/packages/musa',
-    zip_safe = False,
     packages = ( 'musa', ),
     package_data = { '': [ '*.md', '*.txt' ] },
     scripts = glob.glob('bin/*'),
     install_requires = ( 
         'configobj', 
-        'soundforest>=3.2', 
+        'soundforest>=3.3.2', 
     ),
 )
 
