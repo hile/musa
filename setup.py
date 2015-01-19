@@ -3,7 +3,7 @@
 import os,glob
 from setuptools import setup,find_packages
 
-VERSION='3.3.13'
+VERSION='3.3.14'
 
 setup(
     name = 'musa',
@@ -19,7 +19,7 @@ setup(
     scripts = glob.glob('bin/*'),
     install_requires = ( 
         'configobj', 
-        'soundforest>=3.3.2', 
+        'soundforest>=3.3.3', 
     ),
 )
 
