@@ -422,7 +422,7 @@ class ConvertCommand(MusaScriptCommand):
         if prefix_path is None and src.relative_path.startswith(os.sep):
             # Could not parse relative path for source: encode to src directory
             prefix_path = os.path.dirname(os.path.realpath(src.path))
-            dst_relpath = '%s.%s' % (os.path.splitext(src.path)[0], extension)
+            dst_relpath = '%s.%s' % (os.path.splitext(src.filename)[0], extension)
         else:
             # Encode to relative path in prefix directory
             dst_relpath = '%s.%s' % (os.path.splitext(src.relative_path)[0], extension)
