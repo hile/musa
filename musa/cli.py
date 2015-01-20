@@ -165,7 +165,7 @@ class MusaScriptCommand(ScriptCommand):
         """
         Common argument parsing
         """
-        args = ScriptCommand.run(self, args)
+        args = ScriptCommand.parse_args(self, args)
 
         self.prefixes = TreePrefixes()
 
