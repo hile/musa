@@ -19,7 +19,7 @@ setup(
     scripts = glob.glob('bin/*'),
     install_requires = ( 
         'configobj', 
-        'soundforest>=3.4.0', 
+        'soundforest>=3.4.4', 
     ),
 )
 
