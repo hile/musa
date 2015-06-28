@@ -30,6 +30,8 @@ IGNORED_COPY_TAGS = (
     'replaygain_reference_loudness'
 )
 
+RE_MULTIPART_TRACKNUMBER = re.compile('^(?P<tracknumber>[0-9-]+)\s(?P<name>.*)$')
+
 class AlbumArtCommand(MusaScriptCommand):
 
     """AlbumArtCommand
@@ -760,6 +762,48 @@ class PlaylistCommand(MusaScriptCommand):
                         print '  %s' % path
 
 
+class RenumberCommand(MusaScriptCommand):
+    def renumber(self, album):
+        def match_multipart_tracknumber(filename):
+            m = RE_MULTIPART_TRACKNUMBER.match(filename)
+            if not m:
+                self.exit(1, 'Does not match multipart filenumber: %s' % filename)
+            return m.groupdict()['name']
+
+        tracks = []
+        fmt = '0{0}d'.format(len('{0}'.format(len(album))))
+        for index, track in enumerate(album):
+            name = match_multipart_tracknumber(track.filename)
+            index += 1
+            tracks.append((track, os.path.join(
+                album.path,
+                '{0:{1}} {2}'.format(index, fmt, name)
+            )))
+
+        for track, filename in tracks:
+            if track.path == filename:
+                continue
+
+            if os.path.exists(filename):
+                self.message('File already exists: {0}'.format(filename))
+                continue
+
+            try:
+                os.rename(track.path, filename)
+            except OSError, (ecode, emsg):
+                self.exit(1, 'Error renaming {0} to {1}: {2}'.format(track.path, filename, emsg))
+
+
+    def run(self, args):
+        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+
+        for tree in trees:
+            for album in tree.as_albums():
+                if not len(album):
+                    continue
+                self.renumber(album)
+
+
 class SyncCommand(MusaScriptCommand):
 
     def run(self, args):
@@ -1033,6 +1077,9 @@ c.add_argument('paths', nargs='*', help='Directories to join')
 c = script.add_subcommand(PlaylistCommand('playlist', 'Manipulate playlists'))
 c.add_argument('action', choices=('list', 'update', 'register', 'unregister'))
 c.add_argument('paths', nargs='*', help='Tree paths to process')
+
+c = script.add_subcommand(RenumberCommand('renumber', 'Fix track numbers'))
+c.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
 
 c = script.add_subcommand(SyncCommand('sync', 'Synchronize files and trees'))
 c.add_argument('-d', '--directories', action='store_true', help='Sync directories, not configured targets')
