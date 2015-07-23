@@ -2,12 +2,11 @@
 
 import glob
 from setuptools import setup, find_packages
-
-VERSION='3.4.2'
+from musa import __version__
 
 setup(
     name = 'musa',
-    version = VERSION,
+    version = __version__,
     license = 'PSF',
     author = 'Ilkka Tuohela',
     author_email = 'hile@iki.fi',
@@ -17,9 +16,6 @@ setup(
     package_data = { '': [ '*.md', '*.txt' ] },
     scripts = glob.glob('bin/*'),
     packages = find_packages(),
-    install_requires = ( 
-        'configobj', 
-        'soundforest>=3.4.4', 
-    ),
+    install_requires = ( 'soundforest>=3.4.6', ),
 )
 

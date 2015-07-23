@@ -5,6 +5,8 @@ Audio file processing libraries
 
 """
 
+__version__ = '3.4.6'
+
 import os
 import sys
 import unicodedata
