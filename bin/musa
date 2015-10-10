@@ -880,7 +880,7 @@ class TagsCommand(MusaScriptCommand):
             if print_path:
                 self.message(path_format % track.path)
             for tag, values in tags.items():
-                if show_tags and k not in show_tags:
+                if show_tags and tag not in show_tags:
                     continue
 
                 for v in values:
