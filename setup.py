@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 import glob
 from setuptools import setup, find_packages
@@ -16,6 +15,8 @@ setup(
     package_data = { '': [ '*.md', '*.txt' ] },
     scripts = glob.glob('bin/*'),
     packages = find_packages(),
-    install_requires = ( 'soundforest>=3.4.6', ),
+    install_requires = (
+        'soundforest>=3.6.0',
+    ),
 )
 

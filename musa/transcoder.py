@@ -41,7 +41,7 @@ class TranscoderThread(ScriptThread):
             try:
                 os.makedirs(MUSA_CACHE_DIR)
             except OSError, (ecode, emsg):
-                raise TranscoderError('Error creating directory %s: %s' % (MUSA_CACHE_DIR, emsg))
+                raise TranscoderError('Error creating directory {0}: {1}'.format(MUSA_CACHE_DIR, emsg))
 
     def error(self, message):
         print message
@@ -59,9 +59,9 @@ class TranscoderThread(ScriptThread):
                 if not self.dry_run:
                     os.unlink(self.dst.path)
                 else:
-                    self.log.debug('remove: %s' % self.dst.path)
+                    self.log.debug('remove: {0}'.format(self.dst.path))
             except OSError, (ecode, emsg):
-                self.error('Error removing %s: %s' % (self.dst.path, emsg))
+                self.error('Error removing {0}: {1}'.format(self.dst.path, emsg))
 
         dst_dir = os.path.dirname(self.dst.path)
         if not os.path.isdir(dst_dir):
@@ -73,17 +73,17 @@ class TranscoderThread(ScriptThread):
                     # Other thread created directory before us, forget it
                     pass
                 else:
-                    self.error('Error creating directory %s: %s' % (dst_dir, emsg))
+                    self.error('Error creating directory {0}: {1}'.format(dst_dir, emsg))
 
         wav = tempfile.NamedTemporaryFile(
             dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.wav'
         )
         src_tmp = tempfile.NamedTemporaryFile(
-            dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.%s' % self.src.extension
+            dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.{0}'.format(self.src.extension)
         )
         src = Track(src_tmp.name)
         dst_tmp = tempfile.NamedTemporaryFile(
-            dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.%s' % self.dst.extension
+            dir=MUSA_CACHE_DIR, prefix='musa-', suffix='.{0}'.format(self.dst.extension)
         )
         src = Track(src_tmp.name)
         dst = Track(dst_tmp.name)
@@ -100,15 +100,15 @@ class TranscoderThread(ScriptThread):
         try:
             if not self.dry_run:
                 self.status = 'transcoding'
-                self.log.debug('decoding: %s %s' % (self.index, self.src.path))
+                self.log.debug('decoding: {0} {1}'.format(self.index, self.src.path))
                 self.execute(decoder)
-                self.log.debug('encoding: %s %s' % (self.index, self.dst.path))
+                self.log.debug('encoding: {0} {1}'.format(self.index, self.dst.path))
                 self.execute(encoder)
                 shutil.copyfile(dst.path, self.dst.path)
             else:
-                self.log.debug('decoder: %s' % ' '.join(decoder))
-                self.log.debug('encoder: %s' % ' '.join(encoder))
-                self.log.debug('target file: %s' % self.dst.path)
+                self.log.debug('decoder: {0}'.format(' '.join(decoder)))
+                self.log.debug('encoder: {0}'.format(' '.join(encoder)))
+                self.log.debug('target file: {0}'.format(self.dst.path))
             del(wav)
 
         except TranscoderError, emsg:
@@ -118,16 +118,16 @@ class TranscoderThread(ScriptThread):
                 except OSError:
                     pass
             self.status = str(e)
-            self.error('ERROR transcoding: %s' % emsg)
+            self.error('ERROR transcoding: {0}'.format(emsg))
 
         if not self.dry_run and not os.path.isfile(self.dst.path):
-            self.error('File was not successfully transcoded: %s' % self.dst.path)
+            self.error('File was not successfully transcoded: {0}'.format(self.dst.path))
 
         if not self.dry_run:
             try:
                 self.status = 'tagging'
                 if self.src.tags is not None:
-                    self.log.debug('tagging:  %s %s' % (self.index, self.dst.path))
+                    self.log.debug('tagging:  {0} {1}'.format(self.index, self.dst.path))
                     if not self.dry_run:
                         if self.dst.tags is not None:
                             if self.dst.tags.update_tags(self.src.tags.as_dict()):
@@ -152,7 +152,7 @@ class MusaTranscoder(MusaThreadManager):
             raise TranscoderError('Trancode arguments must be track object')
 
         if not os.path.isfile(src.path):
-            raise TranscoderError('No such file: %s' % src.path)
+            raise TranscoderError('No such file: {0}'.format(src.path))
 
         try:
             src_decoder = src.get_decoder_command('/tmp/test.wav')
@@ -164,7 +164,7 @@ class MusaTranscoder(MusaThreadManager):
         except TreeError, emsg:
             raise TranscoderError(str(emsg))
 
-        self.log.debug('enqueue: %s -> %s' % (src.path, dst.path))
+        self.log.debug('enqueue: {0} -> {1}'.format(src.path, dst.path))
         self.append((src, dst))
 
     def get_entry_handler(self, index, entry):
@@ -172,6 +172,6 @@ class MusaTranscoder(MusaThreadManager):
         return TranscoderThread(index, src, dst, self.overwrite, self.dry_run)
 
     def run(self):
-        self.log.debug('Transcoding %s files with %d threads' % (len(self), self.threads))
+        self.log.debug('Transcoding {0} files with {1:d} threads'.format(len(self), self.threads))
         MusaThreadManager.run(self)
 

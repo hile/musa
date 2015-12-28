@@ -5,7 +5,7 @@ Audio file processing libraries
 
 """
 
-__version__ = '3.4.6'
+__version__ = '3.6.0'
 
 import os
 import sys
@@ -81,6 +81,4 @@ if not os.path.isdir(MUSA_USER_DIR):
     try:
         os.makedirs(MUSA_USER_DIR)
     except OSError, (ecode, emsg):
-        raise MusaError(
-             'Error creating directory %s: %s' % (dst_dir, emsg)
-        )
+        raise MusaError('Error creating directory {0}: {1}'.format(dst_dir, emsg))

@@ -26,7 +26,7 @@ class MusaThreadManager(ScriptThreadManager):
         ScriptThreadManager.__init__(self, name, threads)
 
     def enqueue(self, item):
-        self.log.debug('enqueue: %s' % (src.path))
+        self.log.debug('enqueue: {0}'.format(src.path))
         self.append((src, dst))
 
     def run(self):
@@ -40,7 +40,7 @@ class MusaThreadManager(ScriptThreadManager):
                 time.sleep(0.5)
                 continue
 
-            index = '%d/%d' % (total-len(self)+1, total)
+            index = '{0:d}/{1:d}'.format(total-len(self)+1, total)
             t = self.get_entry_handler(index, self.pop(0))
             t.start()
 
@@ -89,7 +89,7 @@ class MusaScript(Script):
         fd = open(tmp.name, 'w')
         for k in sorted(tags.keys()):
             for v in tags[k]:
-                fd.write('%s=%s\n' % (k, v))
+                fd.write('{0}={1}\n'.format(k, v))
         fd.close()
 
         editor = MusaTagsEditor(tmp.name)
@@ -109,7 +109,7 @@ class MusaScript(Script):
                     new_tags[k] = [v]
 
             except ValueError, emsg:
-                raise ScriptError('Error parsing new tags from file: %s' % emsg)
+                raise ScriptError('Error parsing new tags from file: {0}'.format(emsg))
 
         return new_tags
 
@@ -124,7 +124,7 @@ class MusaScriptCommand(ScriptCommand):
                 return track.tags
 
             except TreeError, emsg:
-                self.log.debug('Error parsing tags from %s: %s' % (track.path, emsg))
+                self.log.debug('Error parsing tags from {0}: {1}'.format(track.path, emsg))
                 return None
 
         return None
@@ -156,7 +156,7 @@ class MusaScriptCommand(ScriptCommand):
                         pass
 
                 if tag is None or value is None:
-                    raise ScriptError('Invalid tag input line: %s' % line)
+                    raise ScriptError('Invalid tag input line: {0}'.format(line))
                 tags[tag] = unicode(value)
 
         return tags
