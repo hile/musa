@@ -21,9 +21,10 @@ from soundforest.prefixes import TreePrefixes
 from soundforest.formats import match_metadata, match_codec
 from soundforest.tree import Tree, Track, TreeError
 
+
 class MusaThreadManager(ScriptThreadManager):
     def __init__(self, name, threads=None):
-        ScriptThreadManager.__init__(self, name, threads)
+        super(MusaThreadManager, self).__init__(name, threads)
 
     def enqueue(self, item):
         self.log.debug('enqueue: {0}'.format(src.path))
@@ -52,7 +53,7 @@ class MusaThreadManager(ScriptThreadManager):
 
 class MusaTagsEditor(ScriptThread):
     def __init__(self, tmpfile):
-        ScriptThread.__init__(self, 'musa-edit')
+        super(MusaTagsEditor, self).__init__('musa-edit')
         self.tmpfile = tmpfile
 
     def run(self):
@@ -165,7 +166,7 @@ class MusaScriptCommand(ScriptCommand):
         """
         Common argument parsing
         """
-        args = ScriptCommand.parse_args(self, args)
+        args = super(MusaScriptCommand, self).parse_args(args)
 
         self.prefixes = TreePrefixes()
 

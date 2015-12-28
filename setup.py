@@ -16,7 +16,7 @@ setup(
     scripts = glob.glob('bin/*'),
     packages = find_packages(),
     install_requires = (
-        'soundforest>=3.6.0',
+        'soundforest>=3.7.0',
     ),
 )
 

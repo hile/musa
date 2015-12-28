@@ -1,5 +1,6 @@
 
-import os,re
+import os
+import re
 import unittest
 from musa import tree
 
@@ -26,26 +27,33 @@ class tree_parsing(unittest.TestCase):
 
     def setUp(self,TEST_ROOT='test/data/tree'):
         self.root = TEST_ROOT
-        for root,paths in TEST_FILE_PATHS.items():
-            root = os.path.join(self.root,root)
+        for root, paths in TEST_FILE_PATHS.items():
+            root = os.path.join(self.root, root)
+
             if not os.path.isdir(root):
                 os.makedirs(root)
-            for path in [os.path.join(root,x) for x in paths]:
+
+            for path in [os.path.join(root, x) for x in paths]:
                 dir_path = os.path.dirname(path)
+
                 if not os.path.isdir(dir_path):
                     os.makedirs(dir_path)
+
                 if not os.path.isfile(path):
                     open(path,'w').write('\n')
 
     def tearDown(self):
-        for root,paths in TEST_FILE_PATHS.items():
-            root = os.path.join(self.root,root)
-            for path in [os.path.join(root,x) for x in paths]:
+        for root, paths in TEST_FILE_PATHS.items():
+            root = os.path.join(self.root, root)
+
+            for path in [os.path.join(root, x) for x in paths]:
                 dir_path = os.path.dirname(path)
                 if os.path.isfile(path):
                     os.unlink(path)
+
             for (root,dirs,files) in os.walk(root,topdown=False):
                 os.rmdir(root)
+
             try:
                 os.rmdir(self.root)
             except OSError,(ecode,emsg):
@@ -53,24 +61,25 @@ class tree_parsing(unittest.TestCase):
 
     def test_tree_items(self):
         t = tree.Tree(
-            os.path.join(self.root,'load_tests')
+            os.path.join(self.root, 'load_tests')
         )
-        self.assertTrue(isinstance(t,tree.Tree))
-        self.assertEquals(len(t),2)
+
+        self.assertTrue(isinstance(t, tree.Tree))
+        self.assertEquals(len(t), 2)
 
         for track in t:
-            self.assertTrue(isinstance(track,tree.Track))
+            self.assertTrue(isinstance(track, tree.Track))
             self.assertTrue(os.path.isfile(track.path))
 
         for entry in t.files:
-            self.assertTrue(isinstance(entry,tuple))
-            self.assertEquals(len(entry),2)
-            self.assertTrue(os.path.isfile(os.path.join(entry[0],entry[1])))
+            self.assertTrue(isinstance(entry, tuple))
+            self.assertEquals(len(entry), 2)
+            self.assertTrue(os.path.isfile(os.path.join(entry[0], entry[1])))
 
     def test_tree_file_count(self):
         # Count music files in tree
         t = tree.Tree(
-            os.path.join(self.root,'load_tests')
+            os.path.join(self.root, 'load_tests')
         )
 
         tracks = len(t)
@@ -78,7 +87,7 @@ class tree_parsing(unittest.TestCase):
         self.assertEquals(
             tracks,
             expected,
-            'Invalid number of music files in test tree: %s!=%s' % (tracks,expected)
+            'Invalid number of music files in test tree: {0}!={1}'.format(tracks,expected),
         )
 
         tracks = len(t)
@@ -86,33 +95,38 @@ class tree_parsing(unittest.TestCase):
         self.assertEquals(
             tracks,
             expected,
-            'Invalid count after explicit tree reload: %s!=%s' % (tracks,expected)
+            'Invalid count after explicit tree reload: {0}!={1}'.format(tracks,expected),
         )
 
     def test_tree_filter_regexp(self):
         t = tree.Tree(
-            os.path.join(self.root,'name_tests')
+            os.path.join(self.root, 'name_tests')
         )
         re_test = re.compile('^[0-9]+\s+.*$')
-        matches = t.filter_tracks(re_test,re_path=False,re_file=True)
+
+        matches = t.filter_tracks(re_test, re_path=False, re_file=True)
         expected = 3
-        self.assertEquals(len(matches),expected)
+        self.assertEquals(len(matches), expected)
+
         for f in matches:
-            self.assertTrue(isinstance(f,tuple))
-        matches = t.filter_tracks(re_test,re_path=False,re_file=True,as_tracks=True)
+            self.assertTrue(isinstance(f, tuple))
+        matches = t.filter_tracks(re_test, re_path=False, re_file=True, as_tracks=True)
+
         expected = 3
         for f in matches:
-            self.assertTrue(isinstance(f,tree.Track))
+            self.assertTrue(isinstance(f, tree.Track))
+
         expected = 0
-        matches = t.filter_tracks(re_test,re_path=True,re_file=False)
-        self.assertEquals(len(matches),expected)
+        matches = t.filter_tracks(re_test, re_path=True, re_file=False)
+        self.assertEquals(len(matches), expected)
 
         re_test = re.compile('^.*/[0-9]+\s+.*$')
-        matches = t.filter_tracks(re_test,re_path=False,re_file=True)
+        matches = t.filter_tracks(re_test, re_path=False, re_file=True)
         expected = 0
-        self.assertEquals(len(matches),expected)
+        self.assertEquals(len(matches), expected)
+
         expected = 1
-        matches = t.filter_tracks(re_test,re_path=True,re_file=False)
+        matches = t.filter_tracks(re_test, re_path=True, re_file=False)
         self.assertEquals(len(matches),expected)
 
 suite = unittest.TestLoader().loadTestsFromTestCase(tree_parsing)

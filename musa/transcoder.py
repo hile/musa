@@ -30,7 +30,7 @@ class TranscoderThread(ScriptThread):
     """
 
     def __init__(self, index, src, dst, overwrite=False, dry_run=False):
-        ScriptThread.__init__(self, 'convert')
+        super(TranscoderThread, self).__init__('convert')
         self.index = index
         self.src = src
         self.dst = dst
@@ -143,7 +143,7 @@ class TranscoderThread(ScriptThread):
 
 class MusaTranscoder(MusaThreadManager):
     def __init__(self, threads, overwrite=False, dry_run=False):
-        MusaThreadManager.__init__(self, 'convert', int(threads))
+        super(MusaTranscoder, self).__init__('convert', int(threads))
         self.overwrite = overwrite
         self.dry_run = dry_run
 

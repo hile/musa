@@ -12,7 +12,6 @@ import argparse
 
 from datetime import datetime, timedelta
 
-from musa.sync import SyncManager, SyncError
 from musa.transcoder import MusaTranscoder, TranscoderError
 
 from soundforest import normalized, SoundforestError
@@ -157,7 +156,7 @@ class AlbumArtCommand(MusaScriptCommand):
                     self.log.debug('Error saving {0}: {1}'.format(albumart_path, emsg))
 
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(AlbumArtCommand, self).run(args)
 
         if args.action == 'info':
             for m in metadata:
@@ -224,7 +223,7 @@ class CleanupCommand(MusaScriptCommand):
             tree.remove_empty_path(empty)
 
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(CleanupCommand, self).run(args)
 
         if not len(trees):
             self.script.exit(1, 'Cleanup command only valid for trees')
@@ -235,7 +234,7 @@ class CleanupCommand(MusaScriptCommand):
 
 class CodecCommand(MusaScriptCommand):
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(CodecCommand, self).run(args)
 
         if args.action == 'register-tester':
             if len(args.names) != 1:
@@ -285,10 +284,12 @@ class CompareCommand(MusaScriptCommand):
     def compare_trees(self, src, dst):
         src_track_paths = [x.relative_path().no_ext for x in src]
         dst_track_paths = [x.relative_path().no_ext for x in dst]
+
         if src_track_paths != dst_track_paths:
             script.message('Filename mismatch')
             for s in src_tracks:
                 script.message(type(s.relative_path()), s.relative_path().no_ext)
+
         for track in src:
             if track.relative_path().no_ext not in dst_track_paths:
                 script.message('{0}: missing {1}'.format(dst.relative_path(), track.relative_path().no_ext))
@@ -324,7 +325,7 @@ class CompareCommand(MusaScriptCommand):
                 self.script.error('tag {0}: {1} != {2}'.format(tag, src_tags[tag], dst_tags[tag]))
 
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(CompareCommand, self).run(args)
 
         if trees and tracks:
             self.script.exit(1, "Can't compare trees to tracks")
@@ -342,7 +343,7 @@ class CompareCommand(MusaScriptCommand):
 
 class ConfigCommand(MusaScriptCommand):
     def run(self, args):
-        MusaScriptCommand.run(self, args, skip_targets=True)
+        super(ConfigCommand, self).run(args, skip_targets=True)
 
         if args.action == 'set':
             if args.key is None or args.value is None:
@@ -460,7 +461,7 @@ class ConvertCommand(MusaScriptCommand):
             src_album.copy_metadata(dst_album)
 
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(ConvertCommand, self).run(args)
 
         track_count = sum(len(d.files) for d in trees) + len(tracks)
         if not track_count:
@@ -533,7 +534,7 @@ class CopyTagsCommand(MusaScriptCommand):
         return modified
 
     def run(self, args):
-        MusaScriptCommand.run(self, args, skip_targets=True)
+        super(CopyTagsCommand, self).run(args, skip_targets=True)
 
         source = Tree(args.source)
         if args.target_extension:
@@ -576,7 +577,7 @@ class CopyTagsCommand(MusaScriptCommand):
 
 class DatabaseCommand(MusaScriptCommand):
     def run(self, args):
-        MusaScriptCommand.run(self, args, skip_targets=True)
+        super(DatabaseCommand, self).run(args, skip_targets=True)
 
         if args.action == 'register':
             for dbt in args.trees:
@@ -655,7 +656,7 @@ class JoinCommand(MusaScriptCommand):
         return os.path.join(target_path, '{0:02d} {1}'.format(index, m.groupdict()['name']))
 
     def run(self, args):
-        MusaScriptCommand.run(self, args, skip_targets=True)
+        super(JoinCommand, self).run(args, skip_targets=True)
 
         if not args.paths:
             script.exit(1, 'Paths to join not provided')
@@ -709,7 +710,7 @@ class JoinCommand(MusaScriptCommand):
 class PlaylistCommand(MusaScriptCommand):
 
     def run(self, args):
-        MusaScriptCommand.run(self, args, skip_targets=True)
+        super(PlaylistCommand, self).run(args, skip_targets=True)
 
         if args.action == 'register':
             for path in args.paths:
@@ -785,7 +786,7 @@ class RenumberCommand(MusaScriptCommand):
 
 
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(RenumberCommand, self).run(args)
 
         for tree in trees:
             for album in tree.as_albums():
@@ -794,54 +795,9 @@ class RenumberCommand(MusaScriptCommand):
                 self.renumber(album)
 
 
-class SyncCommand(MusaScriptCommand):
-
-    def run(self, args):
-        MusaScriptCommand.run(self, args, skip_targets=True)
-        self.manager = SyncManager(threads=args.threads, delete=args.delete, debug=args.debug)
-
-        if args.list:
-            for name, settings in self.script.db.sync.items():
-                if args.paths and name not in args.paths:
-                    continue
-                self.message('{0}'.format(name))
-                self.message('  Type:        {0}'.format(settings['type']))
-                self.message('  Source:      {0}'.format(settings['src']))
-                self.message('  Destination: {0}'.format(settings['dst']))
-                self.message('  Flags:       {0}'.format(settings['flags']))
-            script.exit(0)
-
-        if args.directories:
-            if len([d for d in args.paths if os.path.isdir(d)]) != 2:
-                self.script.exit(1, 'Directory sync requires two existing directory paths')
-            src = Tree(args.paths[0])
-            dst = Tree(args.paths[1])
-            self.manager.enqueue({
-                'type': 'directory',
-                'src':src,
-                'dst':dst,
-                'rename':args.rename
-            })
-
-        elif args.paths:
-            for arg in args.paths:
-                target = self.manager.parse_target(arg)
-                if not target:
-                    self.script.exit(1, 'No such target: {0}'.format(arg))
-                self.manager.enqueue(target)
-        else:
-            for target in self.manager.db.sync.default_targets:
-                self.manager.enqueue(self.manager.parse_target(target))
-
-        if len(self.manager):
-            self.manager.run()
-        else:
-            self.script.exit(1, 'No sync targets found')
-
-
 class TagsCommand(MusaScriptCommand):
     def __init__(self, *args, **kwargs):
-        MusaScriptCommand.__init__(self, *args, **kwargs)
+        super(TagsCommand, self).__init__(*args, **kwargs)
         self.xmltree = XMLTrackTree()
 
     def print_tags(self, track, print_path=False, path_format=None,
@@ -954,7 +910,7 @@ class TagsCommand(MusaScriptCommand):
             self.script.exit(1, 'Error saving tags to {0}: {1}'.format(track.path, emsg))
 
     def run(self, args):
-        trees, tracks, metadata = MusaScriptCommand.run(self, args)
+        trees, tracks, metadata = super(TagsCommand, self).run(args)
 
         if args.xml and args.json:
             self.script.exit(1, 'Flags --xml and --json are mutually exclusive')
@@ -1069,14 +1025,6 @@ c.add_argument('action', choices=('list', 'update', 'register', 'unregister'))
 c.add_argument('paths', nargs='*', help='Tree paths to process')
 
 c = script.add_subcommand(RenumberCommand('renumber', 'Fix track numbers'))
-c.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
-
-c = script.add_subcommand(SyncCommand('sync', 'Synchronize files and trees'))
-c.add_argument('-d', '--directories', action='store_true', help='Sync directories, not configured targets')
-c.add_argument('-l', '--list', action='store_true', help='List configured sync targets')
-c.add_argument('-r', '--rename', help='Directory sync target filesystem rename callback')
-c.add_argument('-D', '--delete', action='store_true', help='Remove unknown files from target')
-c.add_argument('-t', '--threads', type=int, help='Number of sync threads to use')
 c.add_argument('paths', metavar='path', nargs='*', help='Paths to process')
 
 c = script.add_subcommand(TagsCommand('tags', 'Manage music file tags',

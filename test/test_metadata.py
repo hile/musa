@@ -19,8 +19,8 @@ class test_metadata(unittest.TestCase):
     def test_registration(self):
 
         class validTestClass(metadata.MetadataFile):
-            def __init__(self,path=None):
-                metadata.MetadataFile.__init__(self,path,'Test Class',filenames=['foo'])
+            def __init__(self, path=None):
+                super(validTestClass, self).__init__(path, 'Test Class', filenames=['foo'])
 
         class invalidTestClass(list):
             def __init__(self):
