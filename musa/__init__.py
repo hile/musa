@@ -4,7 +4,7 @@
 Audio file processing libraries
 
 """
-__version__ = '3.7.1'
+__version__ = '3.7.2'
 
 import os
 import sys
