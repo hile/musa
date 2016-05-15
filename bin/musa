@@ -378,7 +378,7 @@ class ConvertCommand(MusaScriptCommand):
         except TranscoderError, emsg:
             self.script.exit(1, emsg)
 
-    def parse_target_relative_path(self,src,dst=None,prefix_path=None,codec=None):
+    def parse_target_relative_path(self, src, dst=None, prefix_path=None, codec=None):
         if codec is not None:
             if prefix_path is not None:
                 prefix = self.prefixes.match_extension(codec, match_existing=True)
@@ -444,6 +444,7 @@ class ConvertCommand(MusaScriptCommand):
             elif isinstance(src, Track) and dst is None:
                 dst_track = self.parse_target_relative_path(
                     src,
+                    None,
                     prefix_path=prefix_path,
                     codec=codec
                 )
