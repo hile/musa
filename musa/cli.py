@@ -16,6 +16,8 @@ import socket
 import threading
 import subprocess
 
+
+from musa.defaults import MUSA_USER_DIR
 from soundforest.cli import Script, ScriptCommand, ScriptThread, ScriptThreadManager, ScriptError
 from soundforest.prefixes import TreePrefixes
 from soundforest.formats import match_metadata, match_codec
@@ -73,6 +75,15 @@ class MusaScript(Script):
     """
     Musa CLI tool setup class
     """
+    def __init__(self, *args, **kwargs):
+        super(MusaScript, self).__init__(*args, **kwargs)
+
+        if not os.path.isdir(MUSA_USER_DIR):
+            try:
+                os.makedirs(MUSA_USER_DIR)
+            except OSError as e:
+                raise MusaError('Error creating directory {0}: {1}'.format(MUSA_USER_DIR, e))
+
 
     def edit_tags(self, tags):
         """
@@ -109,8 +120,8 @@ class MusaScript(Script):
                 else:
                     new_tags[k] = [v]
 
-            except ValueError, emsg:
-                raise ScriptError('Error parsing new tags from file: {0}'.format(emsg))
+            except ValueError as e:
+                raise ScriptError('Error parsing new tags from file: {0}'.format(e))
 
         return new_tags
 
@@ -124,8 +135,8 @@ class MusaScriptCommand(ScriptCommand):
             try:
                 return track.tags
 
-            except TreeError, emsg:
-                self.log.debug('Error parsing tags from {0}: {1}'.format(track.path, emsg))
+            except TreeError as e:
+                self.log.debug('Error parsing tags from {0}: {1}'.format(track.path, e))
                 return None
 
         return None
@@ -158,7 +169,7 @@ class MusaScriptCommand(ScriptCommand):
 
                 if tag is None or value is None:
                     raise ScriptError('Invalid tag input line: {0}'.format(line))
-                tags[tag] = unicode(value)
+                tags[tag] = str(value)
 
         return tags
 

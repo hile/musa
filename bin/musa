@@ -45,7 +45,7 @@ class AlbumArtCommand(MusaScriptCommand):
                 return
             try:
                 albumart = tags.albumart
-            except AlbumArtError, emsg:
+            except AlbumArtError:
                 return
             self.message('{0}: {1}'.format(target.path, albumart))
 
@@ -129,8 +129,8 @@ class AlbumArtCommand(MusaScriptCommand):
                     try:
                         tags.albumart.save(albumart_path)
                         self.log.debug('Saving {0}: {1}'.format(albumart_path, tags.albumart))
-                    except TagError, emsg:
-                        self.log.debug('Error saving {0}: {1}'.format(albumart_path, emsg))
+                    except TagError as e:
+                        self.log.debug('Error saving {0}: {1}'.format(albumart_path, e))
 
         elif isinstance(target, Track):
             tags = target.tags
@@ -152,8 +152,8 @@ class AlbumArtCommand(MusaScriptCommand):
                 try:
                     tags.albumart.save(albumart_path)
                     self.log.debug('Saving {0}: {1}'.format(albumart_path, tags.albumart))
-                except TagError, emsg:
-                    self.log.debug('Error saving {0}: {1}'.format(albumart_path, emsg))
+                except TagError as e:
+                    self.log.debug('Error saving {0}: {1}'.format(albumart_path, e))
 
     def run(self, args):
         trees, tracks, metadata = super(AlbumArtCommand, self).run(args)
@@ -176,8 +176,8 @@ class AlbumArtCommand(MusaScriptCommand):
 
                 try:
                     albumart.fetch(args.url)
-                except AlbumArtError, emsg:
-                    self.script.exit(1, 'Error fetching albumart: {0}'.format(emsg))
+                except AlbumArtError  as e:
+                    self.script.exit(1, 'Error fetching albumart: {0}'.format(e))
 
                 for target in trees:
                     albumart.save(target.path)
@@ -213,8 +213,8 @@ class CleanupCommand(MusaScriptCommand):
                 self.log.debug('Unknown file type: {0}'.format(path))
             try:
                 os.unlink(path)
-            except OSError, (ecode, emsg):
-                self.log.message('Error removing {0}: {1}'.format(path, emsg))
+            except OSError as e:
+                self.log.message('Error removing {0}: {1}'.format(path, e))
 
         # Reload tree to get empty trees
         self.log.debug('Reloading tree to process empty directories')
@@ -243,8 +243,8 @@ class CodecCommand(MusaScriptCommand):
             try:
                 codec = self.script.db.codecs[args.names[0]]
                 codec.register_formattester(self.script.db.session,args.register_tester)
-            except MusaError,emsg:
-                script.exit(1,emsg)
+            except MusaError as e:
+                script.exit(1, e)
 
         if args.action == 'unregister-tester':
             if len(args.names) != 1:
@@ -253,8 +253,8 @@ class CodecCommand(MusaScriptCommand):
             try:
                 codec = self.script.db.codecs[args.names[0]]
                 codec.unregister_formattester(self.script.db.session,args.unregister_tester)
-            except MusaError,emsg:
-                script.exit(1,emsg)
+            except MusaError as e:
+                script.exit(1, e)
 
         if args.action == 'list':
             for name, codec in self.script.db.codecs.items():
@@ -299,13 +299,13 @@ class CompareCommand(MusaScriptCommand):
         if isinstance(src, basestring):
             try:
                 src = Track(src)
-            except TreeError, emsg:
-                self.script.exit(1, emsg)
+            except TreeError  as e:
+                self.script.exit(1, e)
         if isinstance(src, basestring):
             try:
                 dst = Track(dst)
-            except TreeError, emsg:
-                self.script.exit(1, emsg)
+            except TreeError as e:
+                self.script.exit(1, e)
         self.log.debug('Comparing {0} to {1}'.format(src.relative_path(), dst.relative_path()))
         src_tags = src.tags
         dst_tags = dst.tags
@@ -375,8 +375,8 @@ class ConvertCommand(MusaScriptCommand):
 
         try:
             self.transcoder.enqueue(src, dst)
-        except TranscoderError, emsg:
-            self.script.exit(1, emsg)
+        except TranscoderError as e:
+            self.script.exit(1, e)
 
     def parse_target_relative_path(self, src, dst=None, prefix_path=None, codec=None):
         if codec is not None:
@@ -452,8 +452,8 @@ class ConvertCommand(MusaScriptCommand):
 
             else:
                 self.script.exit(1, 'Unsupported transcode arguments')
-        except ScriptError, emsg:
-            self.script.exit(1, emsg)
+        except ScriptError as e:
+            self.script.exit(1, e)
 
     def copy_metadata(self, dry_run=False):
         for src_path in sorted(self.metadata_paths_to_copy.keys()):
@@ -516,7 +516,7 @@ class CopyTagsCommand(MusaScriptCommand):
 
             try:
                 target_value = dst.tags.get_tag(tag)
-            except TagError, emsg:
+            except TagError:
                 target_value = None
                 pass
 
@@ -584,8 +584,8 @@ class DatabaseCommand(MusaScriptCommand):
             for dbt in args.trees:
                 try:
                     self.script.db.register_tree(dbt)
-                except MusaError, emsg:
-                    self.script.exit(1, emsg)
+                except MusaError as e:
+                    self.script.exit(1, e)
 
         elif args.action == 'unregister':
             for dbt in args.trees:
@@ -672,8 +672,8 @@ class JoinCommand(MusaScriptCommand):
                 script.exit(1, 'Not a directory: {0}'.format(path))
             try:
                 album = Album(path)
-            except MusaError, emsg:
-                script.exit(1, 'Error parsing album {0}: {1}'.format(path, emsg))
+            except MusaError as e:
+                script.exit(1, 'Error parsing album {0}: {1}'.format(path, e))
 
             for track in album:
                 if track.extension not in extensions:
@@ -705,8 +705,8 @@ class JoinCommand(MusaScriptCommand):
 
             try:
                 os.rename(entry[0], entry[1])
-            except OSError, (ecode, emsg):
-                script.exit(1, 'Error renaming {0}: {1}'.format(entry[0], emsg))
+            except OSError as e:
+                script.exit(1, 'Error renaming {0}: {1}'.format(entry[0], e))
 
 class PlaylistCommand(MusaScriptCommand):
 
@@ -717,16 +717,16 @@ class PlaylistCommand(MusaScriptCommand):
             for path in args.paths:
                 try:
                     self.script.db.register_playlist_source(path)
-                except MusaError, emsg:
-                    script.exit(1, emsg)
+                except MusaError as e:
+                    script.exit(1, e)
             script.exit(0)
 
         elif args.action == 'unregister':
             for path in args.paths:
                 try:
                     self.script.db.unregister_playlist_source(path)
-                except MusaError, emsg:
-                    script.exit(1, emsg)
+                except MusaError as e:
+                    script.exit(1, e)
             script.exit(0)
 
         if args.paths:
@@ -782,8 +782,8 @@ class RenumberCommand(MusaScriptCommand):
 
             try:
                 os.rename(track.path, filename)
-            except OSError, (ecode, emsg):
-                self.exit(1, 'Error renaming {0} to {1}: {2}'.format(track.path, filename, emsg))
+            except OSError as e:
+                self.exit(1, 'Error renaming {0} to {1}: {2}'.format(track.path, filename, e))
 
 
     def run(self, args):
@@ -849,8 +849,8 @@ class TagsCommand(MusaScriptCommand):
                     db_track = self.script.db.get_track(track.path)
                     if db_track is not None:
                         db_track.update(self.script.db.session, track)
-            except TagError, emsg:
-                self.script.exit(1, 'Error saving tags to {0}: {1}'.format(track.path, emsg))
+            except TagError as e:
+                self.script.exit(1, 'Error saving tags to {0}: {1}'.format(track.path, e))
 
     def remove_tags(self, track, tags):
         track_tags = self.get_tags(track)
@@ -863,8 +863,8 @@ class TagsCommand(MusaScriptCommand):
                 if db_track is not None:
                     db_track.update(self.script.db.session, track)
 
-        except TagError, emsg:
-            self.script.exit(1, 'Error removing tags from {0}: {1}'.format(track.path, emsg))
+        except TagError as e:
+            self.script.exit(1, 'Error removing tags from {0}: {1}'.format(track.path, e))
 
     def clear_tags(self, track):
         """
@@ -879,8 +879,8 @@ class TagsCommand(MusaScriptCommand):
             if db_track is not None:
                 db_track.update(self.script.db.session, track)
 
-        except TagError, emsg:
-            self.script.exit(1, 'Error removing tags from {0}: {1}'.format(track.path, emsg))
+        except TagError as e:
+            self.script.exit(1, 'Error removing tags from {0}: {1}'.format(track.path, e))
 
     def tags_from_path(self, track, tags={}):
         parts = normalized(track.relative_path()).split(os.sep)
@@ -907,8 +907,8 @@ class TagsCommand(MusaScriptCommand):
                 if db_track is not None:
                     db_track.update(self.script.db.session, track)
 
-        except TagError, emsg:
-            self.script.exit(1, 'Error saving tags to {0}: {1}'.format(track.path, emsg))
+        except TagError as e:
+            self.script.exit(1, 'Error saving tags to {0}: {1}'.format(track.path, e))
 
     def run(self, args):
         trees, tracks, metadata = super(TagsCommand, self).run(args)
@@ -949,8 +949,8 @@ class TagsCommand(MusaScriptCommand):
         if args.input_file:
             try:
                 tags = self.read_input_to_dict(args.input_file)
-            except ScriptError, emsg:
-                self.script.exit(1, str(emsg).strip())
+            except ScriptError as e:
+                self.script.exit(1, str(e).strip())
             self.process_tracks(trees, tracks, self.update_tags, tags=tags)
 
         if args.edit:
