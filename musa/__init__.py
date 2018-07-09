@@ -5,7 +5,7 @@ Audio file processing libraries
 
 """
 
-__version__ = '4.2.4'
+__version__ = '4.5.0'
 
 
 class MusaError(Exception):
