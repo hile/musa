@@ -8,13 +8,12 @@ Module for transcoding between file formats
 import sys
 import os
 import shutil
-import time
 import tempfile
 
 from musa.defaults import MUSA_CACHE_DIR
 from musa.cli import ScriptThread, MusaThreadManager
 from soundforest.tags import TagError
-from soundforest.tree import Tree, Album, Track, TreeError
+from soundforest.tree import Track, TreeError
 
 
 class TranscoderError(Exception):
@@ -96,7 +95,6 @@ class TranscoderThread(ScriptThread):
         except TreeError as e:
             self.error(e)
 
-
         try:
             if not self.dry_run:
                 self.status = 'transcoding'
@@ -174,4 +172,3 @@ class MusaTranscoder(MusaThreadManager):
     def run(self):
         self.log.debug('Transcoding {0} files with {1:d} threads'.format(len(self), self.threads))
         MusaThreadManager.run(self)
-

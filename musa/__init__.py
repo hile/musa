@@ -10,4 +10,3 @@ __version__ = '4.2.4'
 
 class MusaError(Exception):
     pass
-

@@ -8,7 +8,7 @@ Default settings for musa configuration database and commands.
 import sys
 import os
 
-if sys.platform=='darwin':
+if sys.platform == 'darwin':
     MUSA_USER_DIR = os.path.expanduser('~/Library/Application Support/Musa')
     MUSA_CACHE_DIR = os.path.expanduser('~/Library/Caches/Musa')
 else:

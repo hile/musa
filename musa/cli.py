@@ -8,15 +8,12 @@ Command line utilities for musa
 import sys
 import os
 import time
-import logging
-import argparse
 import tempfile
-import signal
-import socket
 import threading
 import subprocess
 
 
+from musa import MusaError
 from musa.defaults import MUSA_USER_DIR
 from soundforest.cli import Script, ScriptCommand, ScriptThread, ScriptThreadManager, ScriptError
 from soundforest.prefixes import TreePrefixes
@@ -33,11 +30,11 @@ class MusaThreadManager(ScriptThreadManager):
         self.append((src, dst))
 
     def run(self):
-        if len(self)==0:
+        if len(self) == 0:
             return
 
         total = len(self)
-        while len(self)>0:
+        while len(self) > 0:
             active = threading.active_count()
             if active > self.threads:
                 time.sleep(0.5)
@@ -84,7 +81,6 @@ class MusaScript(Script):
             except OSError as e:
                 raise MusaError('Error creating directory {0}: {1}'.format(MUSA_USER_DIR, e))
 
-
     def edit_tags(self, tags):
         """
         Dump, open and load back a dictionary with EDITOR
@@ -111,7 +107,7 @@ class MusaScript(Script):
         new_tags = {}
         for l in [l.strip() for l in open(tmp.name, 'r').readlines()]:
             try:
-                if l.strip()=='' or l[:1]=='#':
+                if l.strip() == '' or l[:1] == '#':
                     continue
 
                 k, v = [x.strip() for x in l.split('=', 1)]
@@ -124,6 +120,7 @@ class MusaScript(Script):
                 raise ScriptError('Error parsing new tags from file: {0}'.format(e))
 
         return new_tags
+
 
 class MusaScriptCommand(ScriptCommand):
     """
@@ -208,4 +205,3 @@ class MusaScriptCommand(ScriptCommand):
             return [], [], []
 
         return trees, tracks, metadata
-
